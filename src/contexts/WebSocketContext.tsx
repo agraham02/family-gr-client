@@ -8,6 +8,7 @@ import React, {
     ReactNode,
 } from "react";
 import { io, Socket } from "socket.io-client";
+import { useSession } from "./SessionContext";
 
 interface WebSocketContextValue {
     socket: Socket | null;
@@ -33,16 +34,9 @@ interface WebSocketProviderProps {
 export function WebSocketProvider({ children }: WebSocketProviderProps) {
     const [connected, setConnected] = useState(false);
     const socketRef = useRef<Socket | null>(null);
+    const { roomId, userId } = useSession();
 
     useEffect(() => {
-        const roomId =
-            typeof window !== "undefined"
-                ? sessionStorage.getItem("roomId")
-                : null;
-        const userId =
-            typeof window !== "undefined"
-                ? sessionStorage.getItem("userId")
-                : null;
         if (!roomId || !userId) {
             console.log(
                 "WebSocket: Missing roomId or userId, skipping connection"
@@ -90,7 +84,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
             }
             setConnected(false);
         };
-    }, []);
+    }, [roomId, userId]);
 
     const send = (event: string, ...args: any[]) => {
         if (socketRef.current && connected) {
