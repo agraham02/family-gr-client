@@ -28,21 +28,20 @@ export function useSession() {
 }
 
 export function SessionProvider({ children }: { children: ReactNode }) {
-    const [roomId, setRoomIdState] = useState<string>(
-        typeof window !== "undefined"
-            ? sessionStorage.getItem("roomId") ?? ""
-            : ""
-    );
-    const [userId, setUserIdState] = useState<string>(
-        typeof window !== "undefined"
-            ? sessionStorage.getItem("userId") ?? ""
-            : ""
-    );
-    const [userName, setUserNameState] = useState<string>(
-        typeof window !== "undefined"
-            ? sessionStorage.getItem("userName") ?? ""
-            : ""
-    );
+    const [roomId, setRoomIdState] = useState<string>("");
+    const [userId, setUserIdState] = useState<string>("");
+    const [userName, setUserNameState] = useState<string>("");
+
+    useEffect(() => {
+        if (typeof window !== "undefined") {
+            const storedRoomId = sessionStorage.getItem("roomId") ?? "";
+            const storedUserId = sessionStorage.getItem("userId") ?? "";
+            const storedUserName = sessionStorage.getItem("userName") ?? "";
+            setRoomId(storedRoomId);
+            setUserId(storedUserId);
+            setUserName(storedUserName);
+        }
+    }, []);
 
     // Sync to sessionStorage on change
     useEffect(() => {
