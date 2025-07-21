@@ -43,22 +43,51 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
             typeof window !== "undefined"
                 ? sessionStorage.getItem("userId")
                 : null;
-        if (!roomId || !userId) return;
+        if (!roomId || !userId) {
+            console.log(
+                "WebSocket: Missing roomId or userId, skipping connection"
+            );
+            return;
+        }
+
+        console.log("WebSocket: Attempting to connect with", {
+            roomId,
+            userId,
+        });
 
         const url =
             process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:4000";
         const socket = io(url, {
             query: { roomId, userId },
-            transports: ["websocket"],
+            transports: ["websocket", "polling"],
             autoConnect: true,
+            timeout: 20000,
+            forceNew: true, // Ensure fresh connection
         });
         socketRef.current = socket;
 
-        socket.on("connect", () => setConnected(true));
-        socket.on("disconnect", () => setConnected(false));
+        socket.on("connect", () => {
+            console.log("✅ Connected to WebSocket server");
+            setConnected(true);
+        });
+
+        socket.on("disconnect", (reason) => {
+            console.log("❌ Disconnected from WebSocket server:", reason);
+            setConnected(false);
+        });
+
+        socket.on("connect_error", (error) => {
+            console.error("🚫 WebSocket connection error:", error.message);
+            console.error("Make sure your backend server is running on", url);
+            setConnected(false);
+        });
 
         return () => {
-            socket.disconnect();
+            console.log("🧹 Cleaning up WebSocket connection");
+            if (socketRef.current) {
+                socketRef.current.disconnect();
+                socketRef.current = null;
+            }
             setConnected(false);
         };
     }, []);
