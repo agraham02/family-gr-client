@@ -13,6 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import { useSession } from "@/contexts/SessionContext";
 
 interface CreateRoomCardProps {
     name: string;
@@ -137,15 +138,24 @@ export default function Home() {
     const [loadingCreate, setLoadingCreate] = useState(false);
     const [loadingJoin, setLoadingJoin] = useState(false);
     const router = useRouter();
+    const { setUserId, setRoomId, setUserName } = useSession();
+
+    const handleSuccess = (
+        res: { userId: string; roomId: string; roomCode: string },
+        toastMessage: string
+    ) => {        
+        setUserId(res.userId);
+        setRoomId(res.roomId);
+        setUserName(name);
+        toast(toastMessage);
+        router.push(`/lobby/${res.roomCode}`);
+    };
 
     async function handleCreateRoom(name: string, roomName: string) {
         setLoadingCreate(true);
         try {
             const res = await createRoom(name, roomName);
-            sessionStorage.setItem("userId", res.userId);
-            sessionStorage.setItem("roomId", res.roomId);
-            toast("Room created successfully!");
-            router.push(`/lobby/${res.roomId}`);
+            handleSuccess(res, "Room created successfully!");
         } catch (err: any) {
             toast(`Error Creating Room: ${err?.message || "Unknown error"}`);
             console.error(err);
@@ -158,10 +168,7 @@ export default function Home() {
         setLoadingJoin(true);
         try {
             const res = await joinRoom(name, roomCode);
-            sessionStorage.setItem("userId", res.userId);
-            sessionStorage.setItem("roomId", res.roomId);
-            toast("Joined room successfully!");
-            router.push(`/lobby/${res.roomId}`);
+            handleSuccess(res, "Joined room successfully!");
         } catch (err: any) {
             toast(`Error Joining Room: ${err?.message || "Unknown error"}`);
             console.error(err);
