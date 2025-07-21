@@ -1,5 +1,7 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { createRoom, joinRoom } from "@/services/lobby";
 import {
     Card,
@@ -134,17 +136,18 @@ export default function Home() {
     const [roomCode, setRoomCode] = useState("");
     const [loadingCreate, setLoadingCreate] = useState(false);
     const [loadingJoin, setLoadingJoin] = useState(false);
+    const router = useRouter();
 
     async function handleCreateRoom(name: string, roomName: string) {
         setLoadingCreate(true);
         try {
             const res = await createRoom(name, roomName);
-            console.log("Created room:", res);
             sessionStorage.setItem("userId", res.userId);
             sessionStorage.setItem("roomId", res.roomId);
-            // TODO: Navigate to lobby or game page with res.roomId
-        } catch (err) {
-            // TODO: Show error to user
+            toast("Room created successfully!");
+            router.push(`/lobby/${res.roomId}`);
+        } catch (err: any) {
+            toast(`Error Creating Room: ${err?.message || "Unknown error"}`);
             console.error(err);
         } finally {
             setLoadingCreate(false);
@@ -155,12 +158,12 @@ export default function Home() {
         setLoadingJoin(true);
         try {
             const res = await joinRoom(name, roomCode);
-            console.log("Joined room:", res);
             sessionStorage.setItem("userId", res.userId);
             sessionStorage.setItem("roomId", res.roomId);
-            // TODO: Navigate to lobby or game page with res.roomId
-        } catch (err) {
-            // TODO: Show error to user
+            toast("Joined room successfully!");
+            router.push(`/lobby/${res.roomId}`);
+        } catch (err: any) {
+            toast(`Error Joining Room: ${err?.message || "Unknown error"}`);
             console.error(err);
         } finally {
             setLoadingJoin(false);
