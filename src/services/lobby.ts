@@ -4,6 +4,7 @@
 export interface CreateAndJoinRoomResponse {
     roomId: string;
     userId: string;
+    roomCode: string;
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
@@ -23,12 +24,13 @@ export async function createRoom(
 
 export async function joinRoom(
     userName: string,
-    roomCode: string
+    roomCode: string,
+    userId?: string
 ): Promise<CreateAndJoinRoomResponse> {
     const res = await fetch(`${API_BASE}/rooms/join`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userName, roomCode }),
+        body: JSON.stringify({ userName, roomCode, userId }),
     });
     if (!res.ok) throw new Error("Failed to join room");
     return res.json();
