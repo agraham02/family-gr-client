@@ -11,17 +11,30 @@ export default function LobbyPage() {
         typeof window !== "undefined" ? sessionStorage.getItem("userId") : null;
 
     useEffect(() => {
-        if (!socket) return;
+        if (!socket || !connected) return;
+
+        function handleRoomEvent(payload: any) {
+            console.log("📨 Room event:", payload);
+            switch (payload.event) {
+                case "sync":
+                    setLobbyData(payload.roomState);
+                    break;
+                // handle other events as needed
+            }
+        }
+
         function handleLobbyData(data: any) {
             setLobbyData(data);
         }
-        socket.on("lobby-data", handleLobbyData);
+
+        socket.on("room_event", handleRoomEvent);
+
         // Optionally request lobby data on mount
-        socket.emit("get-lobby-data");
+        socket.emit("join_room", roomId);
         return () => {
-            socket.off("lobby-data", handleLobbyData);
+            socket.off("room_event", handleRoomEvent);
         };
-    }, [socket]);
+    }, [socket, connected]);
 
     return (
         <main className="flex flex-col items-center justify-center min-h-screen p-8">
