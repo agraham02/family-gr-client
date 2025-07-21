@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { createRoom, joinRoom } from "@/services/lobby";
 import {
     Card,
     CardHeader,
@@ -11,17 +12,23 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 
+interface CreateRoomCardProps {
+    name: string;
+    setName: (v: string) => void;
+    roomName: string;
+    setRoomName: (v: string) => void;
+    onCreate: (name: string, roomName: string) => Promise<void>;
+    loading: boolean;
+}
+
 function CreateRoomCard({
     name,
     setName,
     roomName,
     setRoomName,
-}: {
-    name: string;
-    setName: (v: string) => void;
-    roomName: string;
-    setRoomName: (v: string) => void;
-}) {
+    onCreate,
+    loading,
+}: CreateRoomCardProps) {
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -52,9 +59,10 @@ function CreateRoomCard({
                     <Button
                         className="w-full"
                         type="button"
-                        disabled={!name || !roomName}
+                        disabled={!name || !roomName || loading}
+                        onClick={() => onCreate(name, roomName)}
                     >
-                        Create Room
+                        {loading ? "Creating..." : "Create Room"}
                     </Button>
                 </CardFooter>
             </Card>
@@ -62,17 +70,23 @@ function CreateRoomCard({
     );
 }
 
+interface JoinRoomCardProps {
+    name: string;
+    setName: (v: string) => void;
+    roomCode: string;
+    setRoomCode: (v: string) => void;
+    onJoin: (name: string, roomCode: string) => Promise<void>;
+    loading: boolean;
+}
+
 function JoinRoomCard({
     name,
     setName,
     roomCode,
     setRoomCode,
-}: {
-    name: string;
-    setName: (v: string) => void;
-    roomCode: string;
-    setRoomCode: (v: string) => void;
-}) {
+    onJoin,
+    loading,
+}: JoinRoomCardProps) {
     return (
         <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -103,9 +117,10 @@ function JoinRoomCard({
                     <Button
                         className="w-full"
                         type="button"
-                        disabled={!name || !roomCode}
+                        disabled={!name || !roomCode || loading}
+                        onClick={() => onJoin(name, roomCode)}
                     >
-                        Join Room
+                        {loading ? "Joining..." : "Join Room"}
                     </Button>
                 </CardFooter>
             </Card>
@@ -117,6 +132,40 @@ export default function Home() {
     const [name, setName] = useState("");
     const [roomName, setRoomName] = useState("");
     const [roomCode, setRoomCode] = useState("");
+    const [loadingCreate, setLoadingCreate] = useState(false);
+    const [loadingJoin, setLoadingJoin] = useState(false);
+
+    async function handleCreateRoom(name: string, roomName: string) {
+        setLoadingCreate(true);
+        try {
+            const res = await createRoom(name, roomName);
+            console.log("Created room:", res);
+            sessionStorage.setItem("userId", res.userId);
+            sessionStorage.setItem("roomId", res.roomId);
+            // TODO: Navigate to lobby or game page with res.roomId
+        } catch (err) {
+            // TODO: Show error to user
+            console.error(err);
+        } finally {
+            setLoadingCreate(false);
+        }
+    }
+
+    async function handleJoinRoom(name: string, roomCode: string) {
+        setLoadingJoin(true);
+        try {
+            const res = await joinRoom(name, roomCode);
+            console.log("Joined room:", res);
+            sessionStorage.setItem("userId", res.userId);
+            sessionStorage.setItem("roomId", res.roomId);
+            // TODO: Navigate to lobby or game page with res.roomId
+        } catch (err) {
+            // TODO: Show error to user
+            console.error(err);
+        } finally {
+            setLoadingJoin(false);
+        }
+    }
 
     return (
         <main className="flex min-h-screen flex-col items-center justify-center p-4 bg-zinc-50 dark:bg-zinc-950 transition-colors">
@@ -132,12 +181,16 @@ export default function Home() {
                     setName={setName}
                     roomName={roomName}
                     setRoomName={setRoomName}
+                    onCreate={handleCreateRoom}
+                    loading={loadingCreate}
                 />
                 <JoinRoomCard
                     name={name}
                     setName={setName}
                     roomCode={roomCode}
                     setRoomCode={setRoomCode}
+                    onJoin={handleJoinRoom}
+                    loading={loadingJoin}
                 />
             </div>
         </main>
