@@ -143,7 +143,7 @@ export default function Home() {
     const handleSuccess = (
         res: { userId: string; roomId: string; roomCode: string },
         toastMessage: string
-    ) => {        
+    ) => {
         setUserId(res.userId);
         setRoomId(res.roomId);
         setUserName(name);
@@ -156,8 +156,12 @@ export default function Home() {
         try {
             const res = await createRoom(name, roomName);
             handleSuccess(res, "Room created successfully!");
-        } catch (err: any) {
-            toast(`Error Creating Room: ${err?.message || "Unknown error"}`);
+        } catch (err: unknown) {
+            let message = "Unknown error";
+            if (err instanceof Error) {
+                message = err.message;
+            }
+            toast(`Error Creating Room: ${message}`);
             console.error(err);
         } finally {
             setLoadingCreate(false);
@@ -169,8 +173,12 @@ export default function Home() {
         try {
             const res = await joinRoom(name, roomCode);
             handleSuccess(res, "Joined room successfully!");
-        } catch (err: any) {
-            toast(`Error Joining Room: ${err?.message || "Unknown error"}`);
+        } catch (err: unknown) {
+            let message = "Unknown error";
+            if (err instanceof Error) {
+                message = err.message;
+            }
+            toast(`Error Joining Room: ${message}`);
             console.error(err);
         } finally {
             setLoadingJoin(false);

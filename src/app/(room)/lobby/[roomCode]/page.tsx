@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { useParams } from "next/navigation";
 import { joinRoom } from "@/services/lobby";
@@ -16,9 +16,28 @@ import { motion } from "framer-motion";
 import { useSession } from "@/contexts/SessionContext";
 import { toast } from "sonner";
 
+type LobbyData = {
+    roomId: string;
+    users: Array<{
+        userId: string;
+        userName: string;
+    }>;
+    // Add other fields as needed
+};
+
+type BaseRoomEvent = {
+    event: string;
+    roomState: LobbyData;
+};
+
+type RoomEventPayload =
+    | (BaseRoomEvent & { event: "sync" })
+    | (BaseRoomEvent & { event: "user_joined"; userName: string })
+    | (BaseRoomEvent & { event: "user_left"; userName: string });
+
 export default function LobbyPage() {
     const { socket, connected } = useWebSocket();
-    const [lobbyData, setLobbyData] = useState<any>(null);
+    const [lobbyData, setLobbyData] = useState<LobbyData | null>(null);
     const { roomCode }: { roomCode: string } = useParams();
     const {
         roomId,
@@ -33,7 +52,7 @@ export default function LobbyPage() {
     const [pendingName, setPendingName] = useState("");
     const [hasJoined, setHasJoined] = useState(false);
 
-    async function handleReconnect() {
+    const handleReconnect = useCallback(async () => {
         if (!userName || !roomCode) return;
         const res = await joinRoom(userName, roomCode, userId);
         console.log("Reconnected with response:", res);
@@ -43,7 +62,7 @@ export default function LobbyPage() {
             setRoomId(res.roomId);
         }
         setHasJoined(true);
-    }
+    }, [userName, roomCode, userId, roomId, setUserId, setRoomId]);
 
     useEffect(() => {
         if (!initializing) setShowModal(!userName);
@@ -52,12 +71,12 @@ export default function LobbyPage() {
     useEffect(() => {
         if (!userName || !roomCode || hasJoined) return;
         handleReconnect();
-    }, [userName, roomCode]);
+    }, [userName, roomCode, hasJoined, handleReconnect]);
 
     useEffect(() => {
         if (!socket || !connected || !roomId || !userId) return;
 
-        function handleRoomEvent(payload: any) {
+        function handleRoomEvent(payload: RoomEventPayload) {
             console.log("📨 Room event:", payload);
             setLobbyData(payload.roomState);
             switch (payload.event) {
@@ -65,11 +84,12 @@ export default function LobbyPage() {
                     // setLobbyData(payload.roomState);
                     break;
                 case "user_joined":
-                    toast(`${payload.userName} joined`);
-                    break;
                 case "user_left":
-                    toast(`${payload.userName} left`);
-
+                    toast(
+                        `${payload.userName} ${
+                            payload.event === "user_joined" ? "joined" : "left"
+                        }`
+                    );
                     break;
             }
         }

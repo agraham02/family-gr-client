@@ -13,7 +13,7 @@ import { useSession } from "./SessionContext";
 interface WebSocketContextValue {
     socket: Socket | null;
     connected: boolean;
-    send: (event: string, ...args: any[]) => void;
+    send: <T>(event: string, payload: T) => void;
 }
 
 const WebSocketContext = createContext<WebSocketContextValue | undefined>(
@@ -86,9 +86,9 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
         };
     }, [roomId, userId]);
 
-    const send = (event: string, ...args: any[]) => {
+    const send = <T,>(event: string, payload: T) => {
         if (socketRef.current && connected) {
-            socketRef.current.emit(event, ...args);
+            socketRef.current.emit(event, payload);
         }
     };
 
