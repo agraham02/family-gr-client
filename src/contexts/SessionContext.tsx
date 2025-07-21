@@ -14,6 +14,7 @@ interface SessionContextValue {
     setUserId: (id: string) => void;
     userName: string;
     setUserName: (name: string) => void;
+    initializing: boolean;
 }
 
 const SessionContext = createContext<SessionContextValue | undefined>(
@@ -31,6 +32,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const [roomId, setRoomIdState] = useState<string>("");
     const [userId, setUserIdState] = useState<string>("");
     const [userName, setUserNameState] = useState<string>("");
+    const [initializing, setInitializing] = useState<boolean>(true);
 
     useEffect(() => {
         if (typeof window !== "undefined") {
@@ -40,6 +42,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
             setRoomId(storedRoomId);
             setUserId(storedUserId);
             setUserName(storedUserName);
+            setInitializing(false);
         }
     }, []);
 
@@ -68,6 +71,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
                 setUserId,
                 userName,
                 setUserName,
+                initializing,
             }}
         >
             {children}

@@ -20,9 +20,16 @@ export default function LobbyPage() {
     const { socket, connected } = useWebSocket();
     const [lobbyData, setLobbyData] = useState<any>(null);
     const { roomCode }: { roomCode: string } = useParams();
-    const { roomId, userId, userName, setRoomId, setUserId, setUserName } =
-        useSession();
-    const [showModal, setShowModal] = useState(!userName);
+    const {
+        roomId,
+        userId,
+        userName,
+        setRoomId,
+        setUserId,
+        setUserName,
+        initializing,
+    } = useSession();
+    const [showModal, setShowModal] = useState(false);
     const [pendingName, setPendingName] = useState("");
     const [hasJoined, setHasJoined] = useState(false);
 
@@ -37,6 +44,10 @@ export default function LobbyPage() {
         }
         setHasJoined(true);
     }
+
+    useEffect(() => {
+        if (!initializing) setShowModal(!userName);
+    }, [userName, initializing]);
 
     useEffect(() => {
         if (!userName || !roomCode || hasJoined) return;
