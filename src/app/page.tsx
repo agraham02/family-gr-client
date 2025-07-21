@@ -38,8 +38,8 @@ function CreateRoomCard({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
         >
-            <Card className="w-full max-w-sm mb-6 dark:bg-zinc-900 bg-white shadow-lg">
-                <CardHeader>
+            <Card className="w-full max-w-sm dark:bg-zinc-900 bg-white shadow-lg">
+                <CardHeader className="text-center">
                     <CardTitle>Create a Room</CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4">
@@ -97,7 +97,7 @@ function JoinRoomCard({
             transition={{ duration: 0.3, delay: 0.1 }}
         >
             <Card className="w-full max-w-sm dark:bg-zinc-900 bg-white shadow-lg">
-                <CardHeader>
+                <CardHeader className="text-center">
                     <CardTitle>Join a Room</CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4">
@@ -193,23 +193,27 @@ export default function Home() {
             <p className="mt-4 text-lg text-center dark:text-zinc-300">
                 Your hub for family fun and games.
             </p>
-            <div className="flex flex-col md:flex-row gap-8 mt-10 w-full max-w-3xl items-start justify-center">
-                <CreateRoomCard
-                    name={name}
-                    setName={setName}
-                    roomName={roomName}
-                    setRoomName={setRoomName}
-                    onCreate={handleCreateRoom}
-                    loading={loadingCreate}
-                />
-                <JoinRoomCard
-                    name={name}
-                    setName={setName}
-                    roomCode={roomCode}
-                    setRoomCode={setRoomCode}
-                    onJoin={handleJoinRoom}
-                    loading={loadingJoin}
-                />
+            <div className="flex flex-col md:flex-row my-5 w-full max-w-3xl items-center justify-center">
+                <div className="m-5">
+                    <CreateRoomCard
+                        name={name}
+                        setName={setName}
+                        roomName={roomName}
+                        setRoomName={setRoomName}
+                        onCreate={handleCreateRoom}
+                        loading={loadingCreate}
+                    />
+                </div>
+                <div>
+                    <JoinRoomCard
+                        name={name}
+                        setName={setName}
+                        roomCode={roomCode}
+                        setRoomCode={setRoomCode}
+                        onJoin={handleJoinRoom}
+                        loading={loadingJoin}
+                    />
+                </div>
             </div>
         </main>
     );
