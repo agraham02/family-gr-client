@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useWebSocket } from "@/contexts/WebSocketContext";
-import { useParams } from "next/navigation";
-import { joinRoom } from "@/services/lobby";
+import { useParams, useRouter } from "next/navigation";
+import { GameType, getAvailableGames, joinRoom } from "@/services/lobby";
 import {
     Dialog,
     DialogContent,
@@ -35,30 +35,36 @@ type LobbyData = {
         name: string;
     }>;
     leaderId: string;
+    selectedGameType: string;
     // Add other fields as needed
 };
 
 type BaseRoomEvent = {
     event: string;
     roomState: LobbyData;
+    timestamp: string;
 };
 
 type RoomEventPayload =
     | (BaseRoomEvent & { event: "sync" })
     | (BaseRoomEvent & { event: "user_joined"; userName: string })
-    | (BaseRoomEvent & { event: "user_left"; userName: string });
+    | (BaseRoomEvent & { event: "user_left"; userName: string })
+    | (BaseRoomEvent & {
+          event: "game_started";
+          gameId: string;
+          gameState: object;
+      });
 
 function LobbyDashboard({ lobbyData }: { lobbyData: LobbyData }) {
     const { socket, connected } = useWebSocket();
+
     console.log(lobbyData);
     // Dummy data for games; replace with backend/game context later
-    const games = [
-        { id: "trivia", name: "Trivia" },
-        { id: "pictionary", name: "Pictionary" },
-        { id: "charades", name: "Charades" },
-    ];
+    const [availableGames, setAvailableGames] = useState<GameType[]>([]);
     // You can lift these states up if needed for socket/game selection
-    const [selectedGame, setSelectedGame] = useState(games[0].id);
+    const [selectedGame, setSelectedGame] = useState<string | null>(
+        lobbyData.selectedGameType
+    );
 
     // Get session context
     const { userId, userName, roomId } = useSession();
@@ -66,9 +72,27 @@ function LobbyDashboard({ lobbyData }: { lobbyData: LobbyData }) {
     const users = lobbyData.users;
     const leaderId = lobbyData.leaderId;
     const readyStates = lobbyData.readyStates;
+    const isPartyLeader = userId === leaderId;
 
     // Ready state for current user
     const [isReady, setIsReady] = useState(!!readyStates[userId]);
+
+    useEffect(() => {
+        const fetchAvailableGames = async () => {
+            try {
+                const { games } = await getAvailableGames();
+                console.log(games);
+                setAvailableGames(games);
+            } catch (error) {
+                toast.error("Failed to load available games");
+            }
+        };
+        fetchAvailableGames();
+    }, []);
+
+    useEffect(() => {
+        setSelectedGame(lobbyData.selectedGameType);
+    }, [lobbyData.selectedGameType]);
 
     function handleToggleReady() {
         if (!socket || !connected) {
@@ -93,13 +117,26 @@ function LobbyDashboard({ lobbyData }: { lobbyData: LobbyData }) {
         socket.emit("promote_leader", { roomId, userId, newLeaderId });
         toast(`Promoted user ${userId} to leader`);
     }
-    function handleSelectGame(gameId: string) {
-        setSelectedGame(gameId);
-        // TODO: socket.emit("select_game", { gameId })
+    function handleSelectGame(gameType: string) {
+        if (!socket || !connected) {
+            toast.error("Not connected to the server");
+            return;
+        }
+
+        socket.emit("select_game", { roomId, userId, gameType });
     }
+
     function handleCloseRoom() {
         // TODO: socket.emit("close_room", { roomId })
         toast("Room closed");
+    }
+
+    function handleStartGame() {
+        if (!socket || !connected) {
+            toast.error("Not connected to the server");
+            return;
+        }
+        socket.emit("start_game", { roomId, userId, gameType: selectedGame });
     }
 
     return (
@@ -156,31 +193,30 @@ function LobbyDashboard({ lobbyData }: { lobbyData: LobbyData }) {
                                             {isReady ? "Unready" : "Ready"}
                                         </Button>
                                     )}
-                                    {user.id !== userId &&
-                                        userId === leaderId && (
-                                            <>
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="text-red-600 border-red-300 dark:border-red-600"
-                                                    onClick={() =>
-                                                        handleKick(user.id)
-                                                    }
-                                                >
-                                                    Kick
-                                                </Button>
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="text-blue-600 border-blue-300 dark:border-blue-600"
-                                                    onClick={() =>
-                                                        handlePromote(user.id)
-                                                    }
-                                                >
-                                                    Promote
-                                                </Button>
-                                            </>
-                                        )}
+                                    {user.id !== userId && isPartyLeader && (
+                                        <>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="text-red-600 border-red-300 dark:border-red-600"
+                                                onClick={() =>
+                                                    handleKick(user.id)
+                                                }
+                                            >
+                                                Kick
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="text-blue-600 border-blue-300 dark:border-blue-600"
+                                                onClick={() =>
+                                                    handlePromote(user.id)
+                                                }
+                                            >
+                                                Promote
+                                            </Button>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         );
@@ -194,23 +230,36 @@ function LobbyDashboard({ lobbyData }: { lobbyData: LobbyData }) {
                     <CardTitle>Available Games</CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-2">
-                    {games.map((game) => (
+                    {availableGames.map((game) => (
                         <Button
-                            key={game.id}
+                            key={game.type}
                             variant={
-                                selectedGame === game.id ? "default" : "outline"
+                                selectedGame === game.type
+                                    ? "default"
+                                    : "outline"
                             }
                             className={`w-full justify-start ${
-                                selectedGame === game.id
+                                selectedGame === game.type
                                     ? "bg-blue-500 text-white dark:bg-blue-600"
                                     : ""
                             }`}
-                            onClick={() => handleSelectGame(game.id)}
+                            onClick={
+                                isPartyLeader
+                                    ? () => handleSelectGame(game.type)
+                                    : undefined
+                            }
+                            disabled={!isPartyLeader}
+                            aria-disabled={!isPartyLeader}
                         >
-                            {game.name}
-                            {selectedGame === game.id && (
+                            {game.type}
+                            {selectedGame === game.type && (
                                 <span className="ml-2 px-2 py-0.5 text-xs rounded bg-blue-700 text-white dark:bg-blue-800">
                                     Selected
+                                </span>
+                            )}
+                            {!isPartyLeader && (
+                                <span className="ml-2 px-2 py-0.5 text-xs rounded bg-zinc-300 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300">
+                                    Only leader can change
                                 </span>
                             )}
                         </Button>
@@ -231,6 +280,11 @@ function LobbyDashboard({ lobbyData }: { lobbyData: LobbyData }) {
                     >
                         Close Room
                     </Button>
+                    {isPartyLeader && (
+                        <Button className="w-full" onClick={handleStartGame}>
+                            Start Game
+                        </Button>
+                    )}
                     <div className="text-xs text-zinc-500 dark:text-zinc-400">
                         Room ID: <span className="font-mono">{roomId}</span>
                     </div>
@@ -256,15 +310,19 @@ export default function LobbyPage() {
     const [showModal, setShowModal] = useState(false);
     const [pendingName, setPendingName] = useState("");
     const [hasJoined, setHasJoined] = useState(false);
+    const router = useRouter();
 
     const handleReconnect = useCallback(async () => {
         if (!userName || !roomCode) return;
         const res = await joinRoom(userName, roomCode, userId);
         console.log("Reconnected with response:", res);
-        if (!roomId || !userId) {
-            console.log("Overwriting session storage with new values");
-            setUserId(res.userId);
+        if (res.roomId !== roomId) {
+            console.log("Overwriting session storage with new roomId");
             setRoomId(res.roomId);
+        }
+        if (res.userId !== userId) {
+            console.log("Overwriting session storage with new userId");
+            setUserId(res.userId);
         }
         setHasJoined(true);
     }, [userName, roomCode, userId, roomId, setUserId, setRoomId]);
@@ -287,6 +345,10 @@ export default function LobbyPage() {
             switch (payload.event) {
                 case "sync":
                     // setLobbyData(payload.roomState);
+                    break;
+                case "game_started":
+                    toast(`Started game ${payload.gameId}`);
+                    router.push(`/game/${roomCode}`);
                     break;
                 case "user_joined":
                 case "user_left":
