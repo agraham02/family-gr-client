@@ -2,10 +2,13 @@
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { useSession } from "@/contexts/SessionContext";
 import React, { useEffect } from "react";
+import Dominoes from "@/components/games/dominoes";
+import Spades from "@/components/games/spades";
 
 type GameData = {
     // Define the structure of your game data here
     spadesBroken: false;
+    type: string;
 };
 
 type BaseGameEvent = {
@@ -19,7 +22,14 @@ export default function GamePage() {
     const { roomId, userId } = useSession();
     const { socket, connected } = useWebSocket();
     // const { roomCode } = useParams();
-    const [gameData, setGameData] = React.useState<object | null>(null);
+    const [gameData, setGameData] = React.useState<GameData | null>(null);
+
+    // Map game types to components
+    const gameComponents: Record<string, React.FC<{ gameData: GameData }>> = {
+        dominoes: Dominoes,
+        spades: Spades,
+        // Add more games here
+    };
     // const [hasJoined, setHasJoined] = useState(false);
 
     // const getGameState = useCallback(async () => {}, []);
@@ -50,12 +60,21 @@ export default function GamePage() {
         };
     }, [socket, connected, roomId, userId]);
 
+    const GameComponent = gameData && gameComponents[gameData.type];
+
     return (
         <main className="flex flex-col items-center justify-center min-h-screen p-8 bg-zinc-50 dark:bg-zinc-950">
+            {GameComponent ? (
+                <GameComponent gameData={gameData} />
+            ) : (
+                <div className="text-zinc-500 dark:text-zinc-400">
+                    No game UI available
+                </div>
+            )}
             <h1 className="text-3xl font-bold mb-6 dark:text-white">
                 Game Data
             </h1>
-            <div className="w-full max-w-xl">
+            <div className="w-full max-w-xl mb-8">
                 <pre className="bg-zinc-100 dark:bg-zinc-900 p-4 rounded text-sm overflow-x-auto min-h-[80px]">
                     {gameData
                         ? JSON.stringify(gameData, null, 2)
