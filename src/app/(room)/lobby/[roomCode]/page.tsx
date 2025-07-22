@@ -15,13 +15,26 @@ import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { useSession } from "@/contexts/SessionContext";
 import { toast } from "sonner";
+import {
+    Card,
+    CardHeader,
+    CardTitle,
+    CardContent,
+    CardFooter,
+} from "@/components/ui/card";
 
 type LobbyData = {
+    code: string;
+    name: string;
+    createdAt: string;
+    state: string;
+    readyStates: Record<string, boolean>;
     roomId: string;
     users: Array<{
-        userId: string;
-        userName: string;
+        id: string;
+        name: string;
     }>;
+    leaderId: string;
     // Add other fields as needed
 };
 
@@ -34,6 +47,198 @@ type RoomEventPayload =
     | (BaseRoomEvent & { event: "sync" })
     | (BaseRoomEvent & { event: "user_joined"; userName: string })
     | (BaseRoomEvent & { event: "user_left"; userName: string });
+
+function LobbyDashboard({ lobbyData }: { lobbyData: LobbyData }) {
+    const { socket, connected } = useWebSocket();
+    console.log(lobbyData);
+    // Dummy data for games; replace with backend/game context later
+    const games = [
+        { id: "trivia", name: "Trivia" },
+        { id: "pictionary", name: "Pictionary" },
+        { id: "charades", name: "Charades" },
+    ];
+    // You can lift these states up if needed for socket/game selection
+    const [selectedGame, setSelectedGame] = useState(games[0].id);
+
+    // Get session context
+    const { userId, userName, roomId } = useSession();
+    // For demo, fallback to dummy users if not provided
+    const users = lobbyData.users;
+    const leaderId = lobbyData.leaderId;
+    const readyStates = lobbyData.readyStates;
+
+    // Ready state for current user
+    const [isReady, setIsReady] = useState(!!readyStates[userId]);
+
+    function handleToggleReady() {
+        if (!socket || !connected) {
+            toast.error("Not connected to the server");
+            return;
+        }
+
+        socket.emit("toggle_ready", { roomId, userId });
+        setIsReady((prev) => !prev);
+    }
+
+    // Actions (kick/promote) would call socket events in real app
+    function handleKick(userId: string) {
+        // TODO: socket.emit("kick_user", { userId })
+        toast(`Kicked user ${userId}`);
+    }
+    function handlePromote(newLeaderId: string) {
+        if (!socket || !connected) {
+            toast.error("Not connected to the server");
+            return;
+        }
+        socket.emit("promote_leader", { roomId, userId, newLeaderId });
+        toast(`Promoted user ${userId} to leader`);
+    }
+    function handleSelectGame(gameId: string) {
+        setSelectedGame(gameId);
+        // TODO: socket.emit("select_game", { gameId })
+    }
+    function handleCloseRoom() {
+        // TODO: socket.emit("close_room", { roomId })
+        toast("Room closed");
+    }
+
+    return (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl mx-auto mt-8">
+            {/* Users Card */}
+            <Card className="bg-white dark:bg-zinc-900 shadow-md">
+                <CardHeader>
+                    <CardTitle>Players</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-2">
+                    {users.map((user) => {
+                        const ready = readyStates[user.id];
+                        return (
+                            <div
+                                key={user.id}
+                                className={`flex items-center justify-between p-2 rounded transition-colors ${
+                                    user.id === userId
+                                        ? "bg-zinc-200 dark:bg-zinc-800"
+                                        : ""
+                                }`}
+                            >
+                                <span className="font-medium flex items-center gap-2">
+                                    {user.name}
+                                    {user.id === userId && " (You)"}
+                                    {user.id === leaderId && (
+                                        <span className="px-2 py-0.5 text-xs rounded bg-blue-500 text-white dark:bg-blue-600">
+                                            Leader
+                                        </span>
+                                    )}
+                                    <span
+                                        className={`px-2 py-0.5 text-xs rounded ${
+                                            ready
+                                                ? "bg-green-500 text-white dark:bg-green-600"
+                                                : "bg-zinc-300 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300"
+                                        }`}
+                                    >
+                                        {ready ? "Ready" : "Unready"}
+                                    </span>
+                                </span>
+                                <div className="flex gap-2">
+                                    {user.id === userId && (
+                                        <Button
+                                            size="sm"
+                                            variant={
+                                                isReady ? "outline" : "default"
+                                            }
+                                            className={
+                                                isReady
+                                                    ? "border-green-500 text-green-600 dark:border-green-600"
+                                                    : "bg-green-500 text-white dark:bg-green-600"
+                                            }
+                                            onClick={handleToggleReady}
+                                        >
+                                            {isReady ? "Unready" : "Ready"}
+                                        </Button>
+                                    )}
+                                    {user.id !== userId &&
+                                        userId === leaderId && (
+                                            <>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="text-red-600 border-red-300 dark:border-red-600"
+                                                    onClick={() =>
+                                                        handleKick(user.id)
+                                                    }
+                                                >
+                                                    Kick
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="text-blue-600 border-blue-300 dark:border-blue-600"
+                                                    onClick={() =>
+                                                        handlePromote(user.id)
+                                                    }
+                                                >
+                                                    Promote
+                                                </Button>
+                                            </>
+                                        )}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </CardContent>
+            </Card>
+
+            {/* Games Card */}
+            <Card className="bg-white dark:bg-zinc-900 shadow-md">
+                <CardHeader>
+                    <CardTitle>Available Games</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-2">
+                    {games.map((game) => (
+                        <Button
+                            key={game.id}
+                            variant={
+                                selectedGame === game.id ? "default" : "outline"
+                            }
+                            className={`w-full justify-start ${
+                                selectedGame === game.id
+                                    ? "bg-blue-500 text-white dark:bg-blue-600"
+                                    : ""
+                            }`}
+                            onClick={() => handleSelectGame(game.id)}
+                        >
+                            {game.name}
+                            {selectedGame === game.id && (
+                                <span className="ml-2 px-2 py-0.5 text-xs rounded bg-blue-700 text-white dark:bg-blue-800">
+                                    Selected
+                                </span>
+                            )}
+                        </Button>
+                    ))}
+                </CardContent>
+            </Card>
+
+            {/* Room Controls Card */}
+            <Card className="bg-white dark:bg-zinc-900 shadow-md">
+                <CardHeader>
+                    <CardTitle>Room Controls</CardTitle>
+                </CardHeader>
+                <CardContent className="flex flex-col gap-4">
+                    <Button
+                        variant="destructive"
+                        className="w-full"
+                        onClick={handleCloseRoom}
+                    >
+                        Close Room
+                    </Button>
+                    <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                        Room ID: <span className="font-mono">{roomId}</span>
+                    </div>
+                </CardContent>
+            </Card>
+        </div>
+    );
+}
 
 export default function LobbyPage() {
     const { socket, connected } = useWebSocket();
@@ -140,7 +345,8 @@ export default function LobbyPage() {
                     </motion.form>
                 </DialogContent>
             </Dialog>
-            <main className="flex flex-col items-center justify-center min-h-screen p-8">
+
+            {/* <main className="flex flex-col items-center justify-center min-h-screen p-8">
                 <h1 className="text-3xl font-bold mb-4">Lobby</h1>
                 <div className="mb-2">
                     Connection:{" "}
@@ -169,7 +375,8 @@ export default function LobbyPage() {
                             : "(No data received)"}
                     </pre>
                 </div>
-            </main>
+            </main> */}
+            {lobbyData && <LobbyDashboard lobbyData={lobbyData} />}
         </>
     );
 }
