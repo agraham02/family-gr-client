@@ -7,6 +7,11 @@ export interface CreateAndJoinRoomResponse {
     roomCode: string;
 }
 
+export type GameType = {
+    type: string;
+    description?: string;
+};
+
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
 export async function createRoom(
@@ -33,5 +38,11 @@ export async function joinRoom(
         body: JSON.stringify({ userName, roomCode, userId }),
     });
     if (!res.ok) throw new Error("Failed to join room");
+    return res.json();
+}
+
+export async function getAvailableGames(): Promise<{ games: GameType[] }> {
+    const res = await fetch(`${API_BASE}/games`);
+    if (!res.ok) throw new Error("Failed to fetch available games");
     return res.json();
 }
