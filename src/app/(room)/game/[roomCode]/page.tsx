@@ -1,11 +1,11 @@
 "use client";
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { useSession } from "@/contexts/SessionContext";
-import React, { useCallback, useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import React, { useEffect } from "react";
 
 type GameData = {
     // Define the structure of your game data here
+    spadesBroken: false;
 };
 
 type BaseGameEvent = {
@@ -18,11 +18,11 @@ type RoomEventPayload = BaseGameEvent & { event: "sync" };
 export default function GamePage() {
     const { roomId, userId } = useSession();
     const { socket, connected } = useWebSocket();
-    const { roomCode } = useParams();
+    // const { roomCode } = useParams();
     const [gameData, setGameData] = React.useState<object | null>(null);
-    const [hasJoined, setHasJoined] = useState(false);
+    // const [hasJoined, setHasJoined] = useState(false);
 
-    const getGameState = useCallback(async () => {}, []);
+    // const getGameState = useCallback(async () => {}, []);
 
     // useEffect(() => {
     //     if (!roomCode || hasJoined) return;
@@ -48,7 +48,7 @@ export default function GamePage() {
         return () => {
             socket.off("game_event", handleGameEvent);
         };
-    }, []);
+    }, [socket, connected, roomId, userId]);
 
     return (
         <main className="flex flex-col items-center justify-center min-h-screen p-8 bg-zinc-50 dark:bg-zinc-950">

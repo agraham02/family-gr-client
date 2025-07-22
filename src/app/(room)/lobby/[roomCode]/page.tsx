@@ -20,7 +20,7 @@ import {
     CardHeader,
     CardTitle,
     CardContent,
-    CardFooter,
+    // CardFooter,
 } from "@/components/ui/card";
 
 type LobbyData = {
@@ -67,7 +67,7 @@ function LobbyDashboard({ lobbyData }: { lobbyData: LobbyData }) {
     );
 
     // Get session context
-    const { userId, userName, roomId } = useSession();
+    const { userId, roomId } = useSession();
     // For demo, fallback to dummy users if not provided
     const users = lobbyData.users;
     const leaderId = lobbyData.leaderId;
@@ -84,7 +84,13 @@ function LobbyDashboard({ lobbyData }: { lobbyData: LobbyData }) {
                 console.log(games);
                 setAvailableGames(games);
             } catch (error) {
-                toast.error("Failed to load available games");
+                if (error instanceof Error && error.message) {
+                    toast.error(
+                        "Failed to load available games: " + error.message
+                    );
+                } else {
+                    toast.error("Failed to load available games");
+                }
             }
         };
         fetchAvailableGames();
@@ -228,6 +234,11 @@ function LobbyDashboard({ lobbyData }: { lobbyData: LobbyData }) {
             <Card className="bg-white dark:bg-zinc-900 shadow-md">
                 <CardHeader>
                     <CardTitle>Available Games</CardTitle>
+                    {!isPartyLeader && (
+                        <span className="py-0.5 text-xs text-zinc-700 dark:text-zinc-300">
+                            Only leader can change
+                        </span>
+                    )}
                 </CardHeader>
                 <CardContent className="flex flex-col gap-2">
                     {availableGames.map((game) => (
@@ -255,11 +266,6 @@ function LobbyDashboard({ lobbyData }: { lobbyData: LobbyData }) {
                             {selectedGame === game.type && (
                                 <span className="ml-2 px-2 py-0.5 text-xs rounded bg-blue-700 text-white dark:bg-blue-800">
                                     Selected
-                                </span>
-                            )}
-                            {!isPartyLeader && (
-                                <span className="ml-2 px-2 py-0.5 text-xs rounded bg-zinc-300 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300">
-                                    Only leader can change
                                 </span>
                             )}
                         </Button>
@@ -368,7 +374,7 @@ export default function LobbyPage() {
         return () => {
             socket.off("room_event", handleRoomEvent);
         };
-    }, [socket, connected, roomId, userId]);
+    }, [socket, connected, roomId, userId, roomCode, router]);
 
     function handleNameSubmit(e: React.FormEvent) {
         e.preventDefault();
