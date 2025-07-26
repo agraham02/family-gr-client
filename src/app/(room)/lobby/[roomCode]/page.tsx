@@ -140,7 +140,7 @@ export default function LobbyPage() {
                     </div>
                     <div>
                         {/* <h2 className="text-xl font-semibold">Lobby Details</h2> */}
-                        <p className="text-sm">Room Code: {lobbyData?.code}</p>
+                        <p className="">Room Code: {lobbyData?.code}</p>
                     </div>
                 </header>
 

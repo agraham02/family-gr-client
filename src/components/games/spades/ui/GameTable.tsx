@@ -68,7 +68,7 @@ export default function GameTable({
                     />
                 </div>
             ))}
-            <div className="row-start-2 col-start-2 flex flex-col items-center justify-center border-2 border-dashed border-blue-600">
+            <div className="row-start-2 col-start-2 flex flex-col items-center justify-center">
                 <div className="m-2">
                     Round {gameData.completedTricks.length + 1}
                 </div>
