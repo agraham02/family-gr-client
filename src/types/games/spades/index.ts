@@ -25,8 +25,8 @@ export type SpadesData = BaseGameData & {
     completedTricks: SpadesTrick[];
     phase: "bidding" | "playing" | "scoring" | "ended";
     round: number;
-    settings: object;
-    history: [];
+    settings: Record<string, unknown>;
+    history: string[];
     handsCounts: Record<string, number>;
     // Add more spades fields
 };

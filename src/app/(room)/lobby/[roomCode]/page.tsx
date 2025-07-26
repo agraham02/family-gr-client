@@ -67,9 +67,6 @@ export default function LobbyPage() {
             console.log("📨 Room event:", payload);
             setLobbyData(payload.roomState);
             switch (payload.event) {
-                case "sync":
-                    // setLobbyData(payload.roomState);
-                    break;
                 case "game_started":
                     toast(`Started game ${payload.gameId}`);
                     router.push(`/game/${roomCode}`);
