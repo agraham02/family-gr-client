@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { useParams, useRouter } from "next/navigation";
-import { GameType, getAvailableGames, joinRoom } from "@/services/lobby";
+import { getAvailableGames, joinRoom } from "@/services/lobby";
 import {
     Dialog,
     DialogContent,
@@ -22,6 +22,9 @@ import {
     CardContent,
     // CardFooter,
 } from "@/components/ui/card";
+import TeamAssignmentEditor from "@/components/lobby/TeamAssignmentEditor";
+import TeamAssignmentView from "@/components/lobby/TeamAssignmentView";
+import { GameTypeMetadata, User } from "@/types";
 
 type LobbyData = {
     code: string;
@@ -30,12 +33,10 @@ type LobbyData = {
     state: string;
     readyStates: Record<string, boolean>;
     roomId: string;
-    users: Array<{
-        id: string;
-        name: string;
-    }>;
+    users: User[];
     leaderId: string;
     selectedGameType: string;
+    teams?: string[][]; // Optional, only if game requires teams
     // Add other fields as needed
 };
 
@@ -60,10 +61,15 @@ function LobbyDashboard({ lobbyData }: { lobbyData: LobbyData }) {
 
     console.log(lobbyData);
     // Dummy data for games; replace with backend/game context later
-    const [availableGames, setAvailableGames] = useState<GameType[]>([]);
+    const [availableGames, setAvailableGames] = useState<GameTypeMetadata[]>(
+        []
+    );
     // You can lift these states up if needed for socket/game selection
     const [selectedGame, setSelectedGame] = useState<string | null>(
         lobbyData.selectedGameType
+    );
+    const selectedGameMetadata = availableGames.find(
+        (g) => g.type === selectedGame
     );
 
     // Get session context
@@ -262,16 +268,78 @@ function LobbyDashboard({ lobbyData }: { lobbyData: LobbyData }) {
                             disabled={!isPartyLeader}
                             aria-disabled={!isPartyLeader}
                         >
-                            {game.type}
+                            {game.displayName}
                             {selectedGame === game.type && (
                                 <span className="ml-2 px-2 py-0.5 text-xs rounded bg-blue-700 text-white dark:bg-blue-800">
                                     Selected
                                 </span>
                             )}
+                            <span className="ml-auto text-xs">
+                                {game.minPlayers} - {game.maxPlayers} players
+                            </span>
                         </Button>
                     ))}
                 </CardContent>
             </Card>
+
+            {/* Team Assignment Card */}
+            {selectedGameMetadata?.requiresTeams && (
+                <Card className="bg-white dark:bg-zinc-900 shadow-md">
+                    <CardHeader>
+                        <CardTitle>Team Assignment</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {isPartyLeader ? (
+                            <TeamAssignmentEditor
+                                users={users}
+                                teams={
+                                    lobbyData.teams ??
+                                    Array.from(
+                                        {
+                                            length:
+                                                selectedGameMetadata.numTeams ??
+                                                0,
+                                        },
+                                        () => []
+                                    )
+                                }
+                                numTeams={selectedGameMetadata.numTeams ?? 0}
+                                playersPerTeam={
+                                    selectedGameMetadata.playersPerTeam ?? 0
+                                }
+                                onUpdateTeams={(newTeams) => {
+                                    if (!socket || !connected) {
+                                        toast.error(
+                                            "Not connected to the server"
+                                        );
+                                        return;
+                                    }
+                                    socket.emit("set_teams", {
+                                        roomId,
+                                        userId,
+                                        teams: newTeams,
+                                    });
+                                }}
+                            />
+                        ) : (
+                            <TeamAssignmentView
+                                users={users}
+                                teams={
+                                    lobbyData.teams ??
+                                    Array.from(
+                                        {
+                                            length:
+                                                selectedGameMetadata.numTeams ??
+                                                0,
+                                        },
+                                        () => []
+                                    )
+                                }
+                            />
+                        )}
+                    </CardContent>
+                </Card>
+            )}
 
             {/* Room Controls Card */}
             <Card className="bg-white dark:bg-zinc-900 shadow-md">
@@ -413,38 +481,21 @@ export default function LobbyPage() {
                     </motion.form>
                 </DialogContent>
             </Dialog>
+            <main>
+                <header>
+                    <div>
+                        <h1 className="text-3xl font-bold">
+                            {lobbyData?.name}
+                        </h1>
+                    </div>
+                    <div>
+                        {/* <h2 className="text-xl font-semibold">Lobby Details</h2> */}
+                        <p className="text-sm">Room Code: {lobbyData?.code}</p>
+                    </div>
+                </header>
 
-            {/* <main className="flex flex-col items-center justify-center min-h-screen p-8">
-                <h1 className="text-3xl font-bold mb-4">Lobby</h1>
-                <div className="mb-2">
-                    Connection:{" "}
-                    {connected ? (
-                        <span className="text-green-600">Connected</span>
-                    ) : (
-                        <span className="text-red-600">Disconnected</span>
-                    )}
-                </div>
-                <div className="mb-2">
-                    Room ID: <span className="font-mono">{roomId}</span>
-                </div>
-                <div className="mb-2">
-                    User ID: <span className="font-mono">{userId}</span>
-                </div>
-                <div className="mb-2">
-                    Room Code: <span className="font-mono">{roomCode}</span>
-                </div>
-                <div className="w-full max-w-xl mt-6">
-                    <h2 className="text-xl font-semibold mb-2">
-                        Lobby Data from Server:
-                    </h2>
-                    <pre className="bg-zinc-100 dark:bg-zinc-900 p-4 rounded text-sm overflow-x-auto min-h-[80px]">
-                        {lobbyData
-                            ? JSON.stringify(lobbyData, null, 2)
-                            : "(No data received)"}
-                    </pre>
-                </div>
-            </main> */}
-            {lobbyData && <LobbyDashboard lobbyData={lobbyData} />}
+                {lobbyData && <LobbyDashboard lobbyData={lobbyData} />}
+            </main>
         </>
     );
 }
