@@ -2,21 +2,23 @@ import React, { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
-import { LobbyData } from "@/types";
+import { LobbyData, User } from "@/types";
 import { useSession } from "@/contexts/SessionContext";
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { toast } from "sonner";
 
 export default function PlayerListCard({
-    lobbyData,
+    users,
+    leaderId,
+    readyStates,
 }: {
-    lobbyData: LobbyData;
+    users: User[];
+    leaderId: string;
+    readyStates: Record<string, boolean>;
 }) {
     const { socket, connected } = useWebSocket();
     const { userId, roomId } = useSession();
-    const users = lobbyData.users;
-    const leaderId = lobbyData.leaderId;
-    const readyStates = lobbyData.readyStates;
+
     const isPartyLeader = userId === leaderId;
     const [isReady, setIsReady] = useState(!!readyStates[userId]);
 
@@ -41,7 +43,11 @@ export default function PlayerListCard({
             return;
         }
         socket.emit("promote_leader", { roomId, userId, newLeaderId });
-        toast(`Promoted user ${userId} to leader`);
+        toast(
+            `Promoted ${
+                users.find((u) => u.id === newLeaderId)?.name
+            } to leader`
+        );
     }
 
     return (
