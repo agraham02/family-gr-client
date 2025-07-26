@@ -1,28 +1,25 @@
 import React, { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
-import { GameTypeMetadata, LobbyData } from "@/types";
+import { GameTypeMetadata } from "@/types";
 import { useSession } from "@/contexts/SessionContext";
 import { getAvailableGames } from "@/services/lobby";
 import { toast } from "sonner";
 import { useWebSocket } from "@/contexts/WebSocketContext";
 
 export default function AvailableGamesCard({
-    lobbyData,
+    leaderId,
+    selectedGame,
 }: {
-    lobbyData: LobbyData;
+    leaderId: string;
+    selectedGame: string | null;
 }) {
+    const { socket, connected } = useWebSocket();
+    const { userId, roomId } = useSession();
     const [availableGames, setAvailableGames] = useState<GameTypeMetadata[]>(
         []
     );
-
-    const { socket, connected } = useWebSocket();
-    const { userId, roomId } = useSession();
-    const leaderId = lobbyData.leaderId;
     const isPartyLeader = userId === leaderId;
-    const [selectedGame, setSelectedGame] = useState<string | null>(
-        lobbyData.selectedGameType
-    );
 
     useEffect(() => {
         const fetchAvailableGames = async () => {
@@ -42,10 +39,6 @@ export default function AvailableGamesCard({
         };
         fetchAvailableGames();
     }, []);
-
-    useEffect(() => {
-        setSelectedGame(lobbyData.selectedGameType);
-    }, [lobbyData.selectedGameType]);
 
     function handleSelectGame(gameType: string) {
         if (!socket || !connected) {
