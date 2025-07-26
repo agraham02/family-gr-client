@@ -51,7 +51,7 @@ function CreateRoomCard({
                         aria-label="Your Name"
                     />
                     <Input
-                        placeholder="Room Name"
+                        placeholder="Room Name (optional)"
                         value={roomName}
                         onChange={(e) => setRoomName(e.target.value)}
                         className="dark:bg-zinc-800"
@@ -62,7 +62,7 @@ function CreateRoomCard({
                     <Button
                         className="w-full"
                         type="button"
-                        disabled={!name || !roomName || loading}
+                        disabled={!name || loading}
                         onClick={() => onCreate(name, roomName)}
                     >
                         {loading ? "Creating..." : "Create Room"}
