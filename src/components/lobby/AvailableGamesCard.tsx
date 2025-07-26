@@ -1,44 +1,22 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { GameTypeMetadata } from "@/types";
 import { useSession } from "@/contexts/SessionContext";
-import { getAvailableGames } from "@/services/lobby";
 import { toast } from "sonner";
 import { useWebSocket } from "@/contexts/WebSocketContext";
 
 export default function AvailableGamesCard({
-    leaderId,
+    availableGames,
     selectedGame,
+    isPartyLeader,
 }: {
-    leaderId: string;
+    availableGames: GameTypeMetadata[];
     selectedGame: string | null;
+    isPartyLeader: boolean;
 }) {
     const { socket, connected } = useWebSocket();
     const { userId, roomId } = useSession();
-    const [availableGames, setAvailableGames] = useState<GameTypeMetadata[]>(
-        []
-    );
-    const isPartyLeader = userId === leaderId;
-
-    useEffect(() => {
-        const fetchAvailableGames = async () => {
-            try {
-                const { games } = await getAvailableGames();
-                console.log(games);
-                setAvailableGames(games);
-            } catch (error) {
-                if (error instanceof Error && error.message) {
-                    toast.error(
-                        "Failed to load available games: " + error.message
-                    );
-                } else {
-                    toast.error("Failed to load available games");
-                }
-            }
-        };
-        fetchAvailableGames();
-    }, []);
 
     function handleSelectGame(gameType: string) {
         if (!socket || !connected) {

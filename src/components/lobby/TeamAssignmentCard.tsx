@@ -1,33 +1,25 @@
-import React, { useState } from "react";
+import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
-import { Button } from "../ui/button";
 import TeamAssignmentEditor from "./TeamAssignmentEditor";
 import TeamAssignmentView from "./TeamAssignmentView";
-import { GameTypeMetadata, LobbyData } from "@/types";
+import { GameTypeMetadata, User } from "@/types";
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { useSession } from "@/contexts/SessionContext";
 import { toast } from "sonner";
 
 export default function TeamAssignmentCard({
-    lobbyData,
+    users,
+    teams,
+    selectedGameMetadata,
+    isPartyLeader,
 }: {
-    lobbyData: LobbyData;
+    users: User[];
+    teams: string[][];
+    selectedGameMetadata: GameTypeMetadata | undefined;
+    isPartyLeader: boolean;
 }) {
     const { socket, connected } = useWebSocket();
-    // Dummy data for games; replace with backend/game context later
-    const [availableGames] = useState<GameTypeMetadata[]>([]);
-    // You can lift these states up if needed for socket/game selection
-    const [selectedGame] = useState<string | null>(lobbyData.selectedGameType);
-    const selectedGameMetadata = availableGames.find(
-        (g) => g.type === selectedGame
-    );
-
-    // Get session context
     const { userId, roomId } = useSession();
-    // For demo, fallback to dummy users if not provided
-    const users = lobbyData.users;
-    const leaderId = lobbyData.leaderId;
-    const isPartyLeader = userId === leaderId;
 
     if (!selectedGameMetadata) {
         return null;
@@ -43,7 +35,7 @@ export default function TeamAssignmentCard({
                     <TeamAssignmentEditor
                         users={users}
                         teams={
-                            lobbyData.teams ??
+                            teams ??
                             Array.from(
                                 {
                                     length: selectedGameMetadata.numTeams ?? 0,
@@ -71,7 +63,7 @@ export default function TeamAssignmentCard({
                     <TeamAssignmentView
                         users={users}
                         teams={
-                            lobbyData.teams ??
+                            teams ??
                             Array.from(
                                 {
                                     length: selectedGameMetadata.numTeams ?? 0,

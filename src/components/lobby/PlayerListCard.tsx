@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
-import { LobbyData, User } from "@/types";
+import { User } from "@/types";
 import { useSession } from "@/contexts/SessionContext";
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { toast } from "sonner";
@@ -11,15 +11,15 @@ export default function PlayerListCard({
     users,
     leaderId,
     readyStates,
+    isPartyLeader,
 }: {
     users: User[];
     leaderId: string;
     readyStates: Record<string, boolean>;
+    isPartyLeader: boolean;
 }) {
     const { socket, connected } = useWebSocket();
     const { userId, roomId } = useSession();
-
-    const isPartyLeader = userId === leaderId;
     const [isReady, setIsReady] = useState(!!readyStates[userId]);
 
     function handleToggleReady() {
