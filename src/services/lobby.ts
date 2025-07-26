@@ -1,16 +1,4 @@
-// src/services/lobby.ts
-// Service functions for room creation and joining
-
-export interface CreateAndJoinRoomResponse {
-    roomId: string;
-    userId: string;
-    roomCode: string;
-}
-
-export type GameType = {
-    type: string;
-    description?: string;
-};
+import { CreateAndJoinRoomResponse, GameTypeMetadata } from "@/types";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
@@ -41,7 +29,9 @@ export async function joinRoom(
     return res.json();
 }
 
-export async function getAvailableGames(): Promise<{ games: GameType[] }> {
+export async function getAvailableGames(): Promise<{
+    games: GameTypeMetadata[];
+}> {
     const res = await fetch(`${API_BASE}/games`);
     if (!res.ok) throw new Error("Failed to fetch available games");
     return res.json();
