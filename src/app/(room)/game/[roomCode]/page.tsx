@@ -3,84 +3,73 @@ import { useWebSocket } from "@/contexts/WebSocketContext";
 import { useSession } from "@/contexts/SessionContext";
 import React, { useEffect } from "react";
 import Dominoes from "@/components/games/dominoes";
-import Spades from "@/components/games/spades";
-
-type GameData = {
-    // Define the structure of your game data here
-    spadesBroken: false;
-    type: string;
-};
-
-type BaseGameEvent = {
-    event: string;
-    gameState: GameData;
-};
-
-type RoomEventPayload = BaseGameEvent & { event: "sync" };
+import Spades from "@/components/games/spades/index";
+import {
+    DominoesData,
+    GameData,
+    GameEventPayload,
+    PlayerData,
+    SpadesData,
+    SpadesPlayerData,
+} from "@/types";
 
 export default function GamePage() {
     const { roomId, userId } = useSession();
     const { socket, connected } = useWebSocket();
     // const { roomCode } = useParams();
     const [gameData, setGameData] = React.useState<GameData | null>(null);
-
-    // Map game types to components
-    const gameComponents: Record<string, React.FC<{ gameData: GameData }>> = {
-        dominoes: Dominoes,
-        spades: Spades,
-        // Add more games here
-    };
-    // const [hasJoined, setHasJoined] = useState(false);
-
-    // const getGameState = useCallback(async () => {}, []);
-
-    // useEffect(() => {
-    //     if (!roomCode || hasJoined) return;
-    //     getGameState();
-    // }, [roomCode, hasJoined, getGameState]);
+    const [playerData, setPlayerData] = React.useState<PlayerData | null>(null);
 
     useEffect(() => {
         if (!socket || !connected || !roomId || !userId) return;
 
-        function handleGameEvent(payload: RoomEventPayload) {
+        function handleGameEvent(payload: GameEventPayload) {
             console.log("📨 Game event:", payload);
-            setGameData(payload.gameState);
             switch (payload.event) {
                 case "sync":
+                    setGameData(payload.gameState);
+                    break;
+                case "player_sync":
+                    setPlayerData(payload.playerState);
                     break;
             }
         }
 
         socket.on("game_event", handleGameEvent);
 
-        socket.emit("join_game", { roomId, userId });
+        socket.emit("get_game_state", { roomId, userId });
+        socket.emit("get_player_state", { roomId, userId });
 
         return () => {
             socket.off("game_event", handleGameEvent);
         };
     }, [socket, connected, roomId, userId]);
 
-    const GameComponent = gameData && gameComponents[gameData.type];
+    if (!gameData) {
+        return <div>Loading...</div>;
+    }
 
     return (
-        <main className="flex flex-col items-center justify-center min-h-screen p-8 bg-zinc-50 dark:bg-zinc-950">
-            {GameComponent ? (
-                <GameComponent gameData={gameData} />
-            ) : (
+        <main className="flex flex-col items-center justify-center min-h-screen bg-zinc-50 dark:bg-zinc-950">
+            {/* <SpecificGame gameData={gameData} playerData={playerData} /> */}
+            {gameData.type === "dominoes" && playerData && (
+                <Dominoes
+                    gameData={gameData as DominoesData}
+                    playerData={playerData}
+                />
+            )}
+            {gameData.type === "spades" && playerData && (
+                <Spades
+                    gameData={gameData as SpadesData}
+                    playerData={playerData as SpadesPlayerData}
+                />
+            )}
+            {/* Optionally handle unknown game types */}
+            {gameData.type !== "dominoes" && gameData.type !== "spades" && (
                 <div className="text-zinc-500 dark:text-zinc-400">
                     No game UI available
                 </div>
             )}
-            <h1 className="text-3xl font-bold mb-6 dark:text-white">
-                Game Data
-            </h1>
-            <div className="w-full max-w-xl mb-8">
-                <pre className="bg-zinc-100 dark:bg-zinc-900 p-4 rounded text-sm overflow-x-auto min-h-[80px]">
-                    {gameData
-                        ? JSON.stringify(gameData, null, 2)
-                        : "(No game data)"}
-                </pre>
-            </div>
         </main>
     );
 }
