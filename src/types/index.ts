@@ -21,3 +21,4 @@ export interface CreateAndJoinRoomResponse {
 }
 
 export * from "./games";
+export * from "./lobby";
