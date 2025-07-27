@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import { SessionProvider } from "@/contexts/SessionContext";
 import { DarkModeToggle } from "@/components/dark-mode-toggle";
+import { Toaster } from "sonner";
 
 const geistSans = Geist({
     variable: "--font-geist-sans",
@@ -28,12 +30,15 @@ export default function RootLayout({
             <body
                 className={`${geistSans.variable} ${geistMono.variable} antialiased`}
             >
-                <div className="w-full flex justify-end p-4 fixed top-0 left-0 z-50 pointer-events-none">
-                    <div className="pointer-events-auto">
-                        <DarkModeToggle />
+                <SessionProvider>
+                    <div className="w-full flex justify-end p-4 fixed top-0 left-0 z-50 pointer-events-none">
+                        <div className="pointer-events-auto">
+                            <DarkModeToggle />
+                        </div>
                     </div>
-                </div>
-                {children}
+                    <main>{children}</main>
+                </SessionProvider>
+                <Toaster />
             </body>
         </html>
     );

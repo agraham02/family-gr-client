@@ -1,5 +1,7 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { createRoom, joinRoom } from "@/services/lobby";
 import {
     Card,
@@ -11,6 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
+import { useSession } from "@/contexts/SessionContext";
 
 interface CreateRoomCardProps {
     name: string;
@@ -35,8 +38,8 @@ function CreateRoomCard({
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
         >
-            <Card className="w-full max-w-sm mb-6 dark:bg-zinc-900 bg-white shadow-lg">
-                <CardHeader>
+            <Card className="w-full max-w-sm dark:bg-zinc-900 bg-white shadow-lg">
+                <CardHeader className="text-center">
                     <CardTitle>Create a Room</CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4">
@@ -48,7 +51,7 @@ function CreateRoomCard({
                         aria-label="Your Name"
                     />
                     <Input
-                        placeholder="Room Name"
+                        placeholder="Room Name (optional)"
                         value={roomName}
                         onChange={(e) => setRoomName(e.target.value)}
                         className="dark:bg-zinc-800"
@@ -59,7 +62,7 @@ function CreateRoomCard({
                     <Button
                         className="w-full"
                         type="button"
-                        disabled={!name || !roomName || loading}
+                        disabled={!name || loading}
                         onClick={() => onCreate(name, roomName)}
                     >
                         {loading ? "Creating..." : "Create Room"}
@@ -94,7 +97,7 @@ function JoinRoomCard({
             transition={{ duration: 0.3, delay: 0.1 }}
         >
             <Card className="w-full max-w-sm dark:bg-zinc-900 bg-white shadow-lg">
-                <CardHeader>
+                <CardHeader className="text-center">
                     <CardTitle>Join a Room</CardTitle>
                 </CardHeader>
                 <CardContent className="flex flex-col gap-4">
@@ -134,17 +137,31 @@ export default function Home() {
     const [roomCode, setRoomCode] = useState("");
     const [loadingCreate, setLoadingCreate] = useState(false);
     const [loadingJoin, setLoadingJoin] = useState(false);
+    const router = useRouter();
+    const { setUserId, setRoomId, setUserName } = useSession();
+
+    const handleSuccess = (
+        res: { userId: string; roomId: string; roomCode: string },
+        toastMessage: string
+    ) => {
+        setUserId(res.userId);
+        setRoomId(res.roomId);
+        setUserName(name);
+        toast(toastMessage);
+        router.push(`/lobby/${res.roomCode}`);
+    };
 
     async function handleCreateRoom(name: string, roomName: string) {
         setLoadingCreate(true);
         try {
             const res = await createRoom(name, roomName);
-            console.log("Created room:", res);
-            sessionStorage.setItem("userId", res.userId);
-            sessionStorage.setItem("roomId", res.roomId);
-            // TODO: Navigate to lobby or game page with res.roomId
-        } catch (err) {
-            // TODO: Show error to user
+            handleSuccess(res, "Room created successfully!");
+        } catch (err: unknown) {
+            let message = "Unknown error";
+            if (err instanceof Error) {
+                message = err.message;
+            }
+            toast(`Error Creating Room: ${message}`);
             console.error(err);
         } finally {
             setLoadingCreate(false);
@@ -155,12 +172,13 @@ export default function Home() {
         setLoadingJoin(true);
         try {
             const res = await joinRoom(name, roomCode);
-            console.log("Joined room:", res);
-            sessionStorage.setItem("userId", res.userId);
-            sessionStorage.setItem("roomId", res.roomId);
-            // TODO: Navigate to lobby or game page with res.roomId
-        } catch (err) {
-            // TODO: Show error to user
+            handleSuccess(res, "Joined room successfully!");
+        } catch (err: unknown) {
+            let message = "Unknown error";
+            if (err instanceof Error) {
+                message = err.message;
+            }
+            toast(`Error Joining Room: ${message}`);
             console.error(err);
         } finally {
             setLoadingJoin(false);
@@ -175,23 +193,27 @@ export default function Home() {
             <p className="mt-4 text-lg text-center dark:text-zinc-300">
                 Your hub for family fun and games.
             </p>
-            <div className="flex flex-col md:flex-row gap-8 mt-10 w-full max-w-3xl items-start justify-center">
-                <CreateRoomCard
-                    name={name}
-                    setName={setName}
-                    roomName={roomName}
-                    setRoomName={setRoomName}
-                    onCreate={handleCreateRoom}
-                    loading={loadingCreate}
-                />
-                <JoinRoomCard
-                    name={name}
-                    setName={setName}
-                    roomCode={roomCode}
-                    setRoomCode={setRoomCode}
-                    onJoin={handleJoinRoom}
-                    loading={loadingJoin}
-                />
+            <div className="flex flex-col md:flex-row my-5 w-full max-w-3xl items-center justify-center">
+                <div className="m-5">
+                    <CreateRoomCard
+                        name={name}
+                        setName={setName}
+                        roomName={roomName}
+                        setRoomName={setRoomName}
+                        onCreate={handleCreateRoom}
+                        loading={loadingCreate}
+                    />
+                </div>
+                <div>
+                    <JoinRoomCard
+                        name={name}
+                        setName={setName}
+                        roomCode={roomCode}
+                        setRoomCode={setRoomCode}
+                        onJoin={handleJoinRoom}
+                        loading={loadingJoin}
+                    />
+                </div>
             </div>
         </main>
     );
