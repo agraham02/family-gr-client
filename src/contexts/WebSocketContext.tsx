@@ -10,6 +10,7 @@ import React, {
 import { io, Socket } from "socket.io-client";
 import { useSession } from "./SessionContext";
 import { toast } from "sonner";
+import { SOCKET_BASE } from "@/services";
 
 interface WebSocketContextValue {
     socket: Socket | null;
@@ -50,9 +51,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
             userId,
         });
 
-        const url =
-            process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:4000";
-        const socket = io(url, {
+        const socket = io(SOCKET_BASE, {
             query: { roomId, userId },
             transports: ["websocket", "polling"],
             autoConnect: true,
@@ -73,7 +72,10 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
 
         socket.on("connect_error", (error) => {
             console.error("🚫 WebSocket connection error:", error.message);
-            console.error("Make sure your backend server is running on", url);
+            console.error(
+                "Make sure your backend server is running on",
+                SOCKET_BASE
+            );
             setConnected(false);
         });
 
