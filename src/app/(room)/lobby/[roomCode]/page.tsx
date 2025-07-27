@@ -17,6 +17,7 @@ import { useSession } from "@/contexts/SessionContext";
 import { toast } from "sonner";
 import { LobbyData, RoomEventPayload } from "@/types";
 import LobbyDashboard from "@/components/lobby/LobbyDashboard";
+import { ClipboardIcon } from "lucide-react";
 
 export default function LobbyPage() {
     const { socket, connected } = useWebSocket();
@@ -38,17 +39,23 @@ export default function LobbyPage() {
 
     const handleReconnect = useCallback(async () => {
         if (!userName || !roomCode) return;
-        const res = await joinRoom(userName, roomCode, userId);
-        console.log("Reconnected with response:", res);
-        if (res.roomId !== roomId) {
-            console.log("Overwriting session storage with new roomId");
-            setRoomId(res.roomId);
+        try {
+            const res = await joinRoom(userName, roomCode, userId);
+            // console.log("Reconnected with response:", res);
+            if (res.roomId !== roomId) {
+                setRoomId(res.roomId);
+            }
+            if (res.userId !== userId) {
+                setUserId(res.userId);
+            }
+            setHasJoined(true);
+        } catch (error) {
+            toast.error(
+                "Failed to join room: " +
+                    (error instanceof Error ? error.message : "Unknown error")
+            );
+            router.push("/");
         }
-        if (res.userId !== userId) {
-            console.log("Overwriting session storage with new userId");
-            setUserId(res.userId);
-        }
-        setHasJoined(true);
     }, [userName, roomCode, userId, roomId, setUserId, setRoomId]);
 
     useEffect(() => {
@@ -99,45 +106,71 @@ export default function LobbyPage() {
         }
     }
 
+    if (!hasJoined) {
+        return (
+            <>
+                <div className="flex items-center justify-center h-screen">
+                    <p className="text-lg">Joining room...</p>
+                </div>
+                <Dialog open={showModal}>
+                    <DialogContent>
+                        <motion.form
+                            initial={{ opacity: 0, y: 40 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.3 }}
+                            onSubmit={handleNameSubmit}
+                            className="flex flex-col gap-4 items-center p-6"
+                        >
+                            <DialogHeader>
+                                <DialogTitle>
+                                    Enter your name to join the lobby
+                                </DialogTitle>
+                            </DialogHeader>
+                            <Input
+                                autoFocus
+                                placeholder="Your Name"
+                                value={pendingName}
+                                onChange={(e) => setPendingName(e.target.value)}
+                                className="w-64"
+                            />
+                            <Button type="submit" className="w-full mt-2">
+                                Join
+                            </Button>
+                        </motion.form>
+                    </DialogContent>
+                </Dialog>
+            </>
+        );
+    }
+
     return (
         <>
-            <Dialog open={showModal}>
-                <DialogContent>
-                    <motion.form
-                        initial={{ opacity: 0, y: 40 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3 }}
-                        onSubmit={handleNameSubmit}
-                        className="flex flex-col gap-4 items-center p-6"
-                    >
-                        <DialogHeader>
-                            <DialogTitle>
-                                Enter your name to join the lobby
-                            </DialogTitle>
-                        </DialogHeader>
-                        <Input
-                            autoFocus
-                            placeholder="Your Name"
-                            value={pendingName}
-                            onChange={(e) => setPendingName(e.target.value)}
-                            className="w-64"
-                        />
-                        <Button type="submit" className="w-full mt-2">
-                            Join
-                        </Button>
-                    </motion.form>
-                </DialogContent>
-            </Dialog>
-            <main>
-                <header>
+            <main className="px-4 py-8 flex flex-col items-center">
+                <header className="text-center">
                     <div>
                         <h1 className="text-3xl font-bold">
                             {lobbyData?.name}
                         </h1>
                     </div>
-                    <div>
+                    <div className="flex items-center justify-center">
                         {/* <h2 className="text-xl font-semibold">Lobby Details</h2> */}
-                        <p className="">Room Code: {lobbyData?.code}</p>
+                        <p className="text-xl">Room Code: {lobbyData?.code}</p>
+                        <div className="mx-2">
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    navigator.clipboard.writeText(
+                                        lobbyData?.code ?? ""
+                                    );
+                                    toast.success(
+                                        "Room code copied to clipboard"
+                                    );
+                                }}
+                            >
+                                {/* copy icon */}
+                                <ClipboardIcon className="w-2 h-2" />
+                            </Button>
+                        </div>
                     </div>
                 </header>
 
