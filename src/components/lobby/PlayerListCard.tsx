@@ -55,7 +55,7 @@ export default function PlayerListCard({
             <CardHeader>
                 <CardTitle>Players</CardTitle>
             </CardHeader>
-            <CardContent className="flex flex-col gap-2">
+            <CardContent className="flex flex-col gap-3">
                 <AnimatePresence initial={false}>
                     {users.map((user) => {
                         const ready = readyStates[user.id];
@@ -66,22 +66,24 @@ export default function PlayerListCard({
                                 animate={{ x: 0, opacity: 1 }}
                                 exit={{ x: -50, opacity: 0 }}
                                 transition={{ duration: 0.35, ease: "easeOut" }}
-                                className={`flex items-center justify-between p-2 rounded transition-colors ${
+                                className={`flex flex-col md:flex-row md:items-center justify-between p-3 rounded-lg min-w-0 transition-colors gap-2 md:gap-4 ${
                                     user.id === userId
                                         ? "bg-zinc-200 dark:bg-zinc-800"
                                         : ""
                                 }`}
                             >
-                                <span className="font-medium flex items-center gap-2">
-                                    {user.name}
-                                    {user.id === userId && " (You)"}
+                                <div className="flex flex-wrap items-center gap-2 min-w-0">
+                                    <span className="font-medium truncate max-w-[8rem] md:max-w-[12rem]">
+                                        {user.name}
+                                        {user.id === userId && " (You)"}
+                                    </span>
                                     {user.id === leaderId && (
-                                        <span className="px-2 py-0.5 text-xs rounded bg-blue-500 text-white dark:bg-blue-600">
+                                        <span className="px-2 py-0.5 text-xs rounded bg-blue-500 text-white dark:bg-blue-600 whitespace-nowrap">
                                             Leader
                                         </span>
                                     )}
                                     <span
-                                        className={`px-2 py-0.5 text-xs rounded ${
+                                        className={`px-2 py-0.5 text-xs rounded whitespace-nowrap ${
                                             ready
                                                 ? "bg-green-500 text-white dark:bg-green-600"
                                                 : "bg-zinc-300 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300"
@@ -89,8 +91,8 @@ export default function PlayerListCard({
                                     >
                                         {ready ? "Ready" : "Unready"}
                                     </span>
-                                </span>
-                                <div className="flex gap-2">
+                                </div>
+                                <div className="flex flex-wrap gap-2 mt-2 md:mt-0">
                                     {user.id === userId && (
                                         <Button
                                             size="sm"
