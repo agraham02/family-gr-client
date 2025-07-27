@@ -28,4 +28,5 @@ export type RoomEventPayload =
           event: "game_started";
           gameId: string;
           gameState: object;
+          gameType: string;
       });

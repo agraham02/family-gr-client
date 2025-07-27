@@ -75,12 +75,12 @@ export default function LobbyPage() {
             setLobbyData(payload.roomState);
             switch (payload.event) {
                 case "game_started":
-                    toast(`Started game ${payload.gameId}`);
+                    toast.info(`Starting ${payload.gameType} game...`);
                     router.push(`/game/${roomCode}`);
                     break;
                 case "user_joined":
                 case "user_left":
-                    toast(
+                    toast.info(
                         `${payload.userName} ${
                             payload.event === "user_joined" ? "joined" : "left"
                         }`
