@@ -86,6 +86,10 @@ export default function LobbyPage() {
                         }`
                     );
                     break;
+                case "room_closed":
+                    toast.warning("Room has been closed by the leader");
+                    router.push("/");
+                    break;
             }
         }
 

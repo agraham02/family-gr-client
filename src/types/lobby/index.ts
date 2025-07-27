@@ -29,4 +29,5 @@ export type RoomEventPayload =
           gameId: string;
           gameState: object;
           gameType: string;
-      });
+      })
+    | (BaseRoomEvent & { event: "room_closed" });
