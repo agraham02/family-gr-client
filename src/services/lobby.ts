@@ -1,6 +1,5 @@
 import { CreateAndJoinRoomResponse, GameTypeMetadata } from "@/types";
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+import { API_BASE } from ".";
 
 export async function createRoom(
     userName: string,
