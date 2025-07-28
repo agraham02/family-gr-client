@@ -12,6 +12,8 @@ import {
     SpadesData,
     SpadesPlayerData,
 } from "@/types";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 export default function GamePage() {
     const { roomId, userId } = useSession();
@@ -19,6 +21,7 @@ export default function GamePage() {
     // const { roomCode } = useParams();
     const [gameData, setGameData] = React.useState<GameData | null>(null);
     const [playerData, setPlayerData] = React.useState<PlayerData | null>(null);
+    const router = useRouter();
 
     useEffect(() => {
         if (!socket || !connected || !roomId || !userId) return;
@@ -31,6 +34,15 @@ export default function GamePage() {
                     break;
                 case "player_sync":
                     setPlayerData(payload.playerState);
+                    break;
+                case "player_left":
+                    toast.info(`${payload.userName} has left the game.`);
+                    break;
+                case "game_aborted":
+                    toast.info(
+                        `The game has been aborted. Returning to lobby.`
+                    );
+                    router.push(`/lobby/${roomId}`);
                     break;
             }
         }
