@@ -23,11 +23,23 @@ export type SpadesData = BaseGameData & {
     spadesBroken: boolean;
     currentTrick: SpadesTrick | null;
     completedTricks: SpadesTrick[];
-    phase: "bidding" | "playing" | "scoring" | "ended";
+    phase:
+        | "bidding"
+        | "playing"
+        | "trick-result"
+        | "scoring"
+        | "round-summary"
+        | "finished";
     round: number;
     settings: Record<string, unknown>;
     history: string[];
     handsCounts: Record<string, number>;
+    lastTrickWinnerId?: string;
+    lastTrickWinningCard?: PlayingCard;
+
+    roundTrickCounts: Record<string, number>;
+    roundTeamScores: Record<number, number>; // scores for each team for the round.
+    roundScoreBreakdown: Record<number, unknown>;
     // Add more spades fields
 };
 
