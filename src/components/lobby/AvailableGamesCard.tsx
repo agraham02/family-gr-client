@@ -5,6 +5,7 @@ import { GameTypeMetadata } from "@/types";
 import { useSession } from "@/contexts/SessionContext";
 import { toast } from "sonner";
 import { useWebSocket } from "@/contexts/WebSocketContext";
+import { cn } from "@/lib/utils";
 
 export default function AvailableGamesCard({
     availableGames,
@@ -44,11 +45,12 @@ export default function AvailableGamesCard({
                         variant={
                             selectedGame === game.type ? "default" : "outline"
                         }
-                        className={`w-full justify-start ${
+                        className={cn(
+                            "w-full h-fit justify-start",
                             selectedGame === game.type
                                 ? "bg-blue-500 text-white dark:bg-blue-600"
                                 : ""
-                        }`}
+                        )}
                         onClick={
                             isPartyLeader
                                 ? () => handleSelectGame(game.type)
@@ -57,15 +59,14 @@ export default function AvailableGamesCard({
                         disabled={!isPartyLeader}
                         aria-disabled={!isPartyLeader}
                     >
-                        {game.displayName}
-                        {selectedGame === game.type && (
-                            <span className="ml-2 px-2 py-0.5 text-xs rounded bg-blue-700 text-white dark:bg-blue-800">
-                                Selected
+                        <div className="flex w-full flex-wrap items-center gap-3 min-w-0 p-2">
+                            <span className="truncate min-w-0 font-medium">
+                                {game.displayName}
                             </span>
-                        )}
-                        <span className="ml-auto text-xs">
-                            {game.minPlayers} - {game.maxPlayers} players
-                        </span>
+                            <span className="text-xs whitespace-nowrap">
+                                {game.minPlayers} - {game.maxPlayers} players
+                            </span>
+                        </div>
                     </Button>
                 ))}
             </CardContent>

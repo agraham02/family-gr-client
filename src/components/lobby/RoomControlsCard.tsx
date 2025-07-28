@@ -16,8 +16,12 @@ export default function RoomControlsCard({
     const { userId, roomId } = useSession();
 
     function handleCloseRoom() {
-        // TODO: socket.emit("close_room", { roomId })
-        toast("Room closed");
+        if (!socket || !connected) {
+            toast.error("Not connected to the server");
+            return;
+        }
+        socket.emit("close_room", { roomId, userId });
+        toast.warning("Room closed");
     }
 
     function handleStartGame() {

@@ -142,47 +142,45 @@ export default function Home() {
 
     const handleSuccess = (
         res: { userId: string; roomId: string; roomCode: string },
-        toastMessage: string
     ) => {
         setUserId(res.userId);
         setRoomId(res.roomId);
         setUserName(name);
-        toast(toastMessage);
         router.push(`/lobby/${res.roomCode}`);
     };
 
     async function handleCreateRoom(name: string, roomName: string) {
         setLoadingCreate(true);
-        try {
-            const res = await createRoom(name, roomName);
-            handleSuccess(res, "Room created successfully!");
-        } catch (err: unknown) {
-            let message = "Unknown error";
-            if (err instanceof Error) {
-                message = err.message;
-            }
-            toast(`Error Creating Room: ${message}`);
-            console.error(err);
-        } finally {
-            setLoadingCreate(false);
-        }
+        await toast.promise(createRoom(name, roomName), {
+            loading: "Creating room...",
+            success: (res) => {
+                handleSuccess(res);
+                return "Room created successfully!";
+            },
+            error: (err) => {
+                let message = "Unknown error";
+                if (err instanceof Error) message = err.message;
+                return `Error Creating Room: ${message}`;
+            },
+        });
+        setLoadingCreate(false);
     }
 
     async function handleJoinRoom(name: string, roomCode: string) {
         setLoadingJoin(true);
-        try {
-            const res = await joinRoom(name, roomCode);
-            handleSuccess(res, "Joined room successfully!");
-        } catch (err: unknown) {
-            let message = "Unknown error";
-            if (err instanceof Error) {
-                message = err.message;
-            }
-            toast(`Error Joining Room: ${message}`);
-            console.error(err);
-        } finally {
-            setLoadingJoin(false);
-        }
+        await toast.promise(joinRoom(name, roomCode), {
+            loading: "Joining room...",
+            success: (res) => {
+                handleSuccess(res);
+                return "Joined room successfully!";
+            },
+            error: (err) => {
+                let message = "Unknown error";
+                if (err instanceof Error) message = err.message;
+                return `Error Joining Room: ${message}`;
+            },
+        });
+        setLoadingJoin(false);
     }
 
     return (

@@ -53,7 +53,7 @@ export default function LobbyDashboard({
     }, [lobbyData.selectedGameType]);
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full max-w-5xl my-8 mx-auto px-5 md:px-10">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full my-8 mx-auto px-5 md:px-10">
             <PlayerListCard
                 users={lobbyData.users}
                 leaderId={lobbyData.leaderId}

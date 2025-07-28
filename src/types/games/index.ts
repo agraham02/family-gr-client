@@ -8,13 +8,16 @@ export type BaseGameEvent = {
 
 export type GameEventPayload =
     | (BaseGameEvent & { event: "sync"; gameState: GameData })
-    | { event: "player_sync"; playerState: PlayerData };
+    | { event: "player_sync"; playerState: PlayerData }
+    | { event: "player_left"; userName: string }
+    | { event: "game_aborted"; reason: string };
 
 export type Players = Record<string, User>;
 
 export type BaseGameData = {
     type: string;
     players: Players;
+    leaderId: string;
     // Add other shared fields here if needed
 };
 
