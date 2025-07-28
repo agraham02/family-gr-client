@@ -103,7 +103,6 @@ export default function Spades({
             </Button>
             <PlaceBidModal
                 bid={bid}
-                setBid={setBid}
                 bidModalOpen={bidModalOpen}
                 setBidModalOpen={setBidModalOpen}
                 handleBidChange={handleBidChange}

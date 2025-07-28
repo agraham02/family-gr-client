@@ -72,7 +72,7 @@ export default function GamePage() {
             {gameData.type === "dominoes" && playerData && (
                 <Dominoes
                     gameData={gameData as DominoesData}
-                    playerData={playerData}
+                    // playerData={playerData}
                 />
             )}
             {gameData.type === "spades" && playerData && (
