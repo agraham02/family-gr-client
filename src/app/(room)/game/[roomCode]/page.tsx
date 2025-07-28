@@ -23,14 +23,14 @@ export default function GamePage() {
     const [playerData, setPlayerData] = React.useState<PlayerData | null>(null);
     const router = useRouter();
 
-    useEffect(() => {
-        if (!socket || !connected || !roomId || !userId) return;
-
-        function handleGameEvent(payload: GameEventPayload) {
+    const handleGameEvent = React.useCallback(
+        (payload: GameEventPayload) => {
             console.log("📨 Game event:", payload);
             switch (payload.event) {
                 case "sync":
                     setGameData(payload.gameState);
+                    if (socket)
+                        socket.emit("get_player_state", { roomId, userId });
                     break;
                 case "player_sync":
                     setPlayerData(payload.playerState);
@@ -45,7 +45,12 @@ export default function GamePage() {
                     router.push(`/lobby/${roomId}`);
                     break;
             }
-        }
+        },
+        [socket, roomId, userId, router]
+    );
+
+    useEffect(() => {
+        if (!socket || !connected || !roomId || !userId) return;
 
         socket.on("game_event", handleGameEvent);
 
@@ -55,7 +60,7 @@ export default function GamePage() {
         return () => {
             socket.off("game_event", handleGameEvent);
         };
-    }, [socket, connected, roomId, userId]);
+    }, [socket, connected, roomId, userId, handleGameEvent]);
 
     if (!gameData) {
         return <div>Loading...</div>;
