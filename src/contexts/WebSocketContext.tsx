@@ -63,8 +63,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
 
         socket.on("connect_error", (error) => {
             toast.error(
-                "WebSocket connection error: " + error.message ||
-                    "Unknown error"
+                "WebSocket connection error: " + (error.message || "Unknown error")
             );
             setConnected(false);
         });

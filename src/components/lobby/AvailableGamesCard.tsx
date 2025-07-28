@@ -61,7 +61,7 @@ export default function AvailableGamesCard({
                     >
                         <div className="flex w-full flex-wrap items-center gap-3 min-w-0 p-2">
                             <span className="truncate min-w-0 font-medium">
-                                {game.displayName}:
+                                {game.displayName}
                             </span>
                             <span className="text-xs whitespace-nowrap">
                                 {game.minPlayers} - {game.maxPlayers} players
