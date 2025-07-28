@@ -39,16 +39,8 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
 
     useEffect(() => {
         if (!roomId || !userId) {
-            console.log(
-                "WebSocket: Missing roomId or userId, skipping connection"
-            );
             return;
         }
-
-        console.log("WebSocket: Attempting to connect with", {
-            roomId,
-            userId,
-        });
 
         const url =
             process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:4000";
@@ -62,28 +54,27 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
         socketRef.current = socket;
 
         socket.on("connect", () => {
-            console.log("✅ Connected to WebSocket server");
             setConnected(true);
         });
 
         socket.on("disconnect", (reason) => {
-            console.log("❌ Disconnected from WebSocket server:", reason);
             setConnected(false);
         });
 
         socket.on("connect_error", (error) => {
-            console.error("🚫 WebSocket connection error:", error.message);
-            console.error("Make sure your backend server is running on", url);
+            toast.error(
+                "WebSocket connection error: " + (error.message || "Unknown error")
+            );
             setConnected(false);
         });
 
         socket.on("error", (error) => {
-            console.error("🚨 WebSocket error:", error);
+            // console.error("🚨 WebSocket error:", error);
             toast.error(error.error || "WebSocket error occurred");
         });
 
         return () => {
-            console.log("🧹 Cleaning up WebSocket connection");
+            // console.log("🧹 Cleaning up WebSocket connection");
             if (socketRef.current) {
                 socketRef.current.disconnect();
                 socketRef.current = null;
