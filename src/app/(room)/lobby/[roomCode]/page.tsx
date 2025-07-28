@@ -56,7 +56,7 @@ export default function LobbyPage() {
             );
             router.push("/");
         }
-    }, [userName, roomCode, userId, roomId, setUserId, setRoomId]);
+    }, [userName, roomCode, userId, roomId, setUserId, setRoomId, router]);
 
     useEffect(() => {
         if (!initializing) setShowModal(!userName);

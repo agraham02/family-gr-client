@@ -3,10 +3,10 @@ import React from "react";
 
 export default function Dominoes({
     gameData,
-    playerData,
+    // playerData,
 }: {
     gameData: DominoesData;
-    playerData: PlayerData;
+    // playerData: PlayerData;
 }) {
     return <div>Dominoes - Count: {gameData.dominoCount}</div>;
 }

@@ -1,7 +1,5 @@
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import React, { useEffect, useState } from "react";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/contexts/SessionContext";
 import GameTable from "./ui/GameTable";
@@ -18,18 +16,20 @@ export default function Spades({
     playerData: SpadesPlayerData;
 }) {
     const { socket, connected } = useWebSocket();
-    // For demo, get userId from session context (replace with prop/context as needed)
     const { roomId, userId } = useSession();
 
-    function sendGameAction(type: string, payload: unknown) {
-        if (!socket || !connected) return;
-        const action = {
-            type,
-            payload,
-            userId,
-        };
-        socket.emit("game_action", { roomId, action });
-    }
+    const sendGameAction = React.useCallback(
+        (type: string, payload: unknown) => {
+            if (!socket || !connected) return;
+            const action = {
+                type,
+                payload,
+                userId,
+            };
+            socket.emit("game_action", { roomId, action });
+        },
+        [socket, connected, userId, roomId]
+    );
 
     // Assume gameData has phase, players, currentIndex, and bids fields
     const isBiddingPhase = gameData.phase === "bidding";
@@ -65,7 +65,14 @@ export default function Spades({
 
             return () => clearTimeout(timer);
         }
-    }, [gameData.phase, isMyTurn, isBiddingPhase]);
+    }, [
+        gameData.phase,
+        isMyTurn,
+        isBiddingPhase,
+        userId,
+        gameData.leaderId,
+        sendGameAction,
+    ]);
 
     return (
         <div className="h-full w-full">

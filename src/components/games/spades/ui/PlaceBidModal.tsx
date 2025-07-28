@@ -4,14 +4,12 @@ import React from "react";
 
 export default function PlaceBidModal({
     bid,
-    setBid,
     bidModalOpen,
     setBidModalOpen,
     handleBidChange,
     handleSubmitBid,
 }: {
     bid: number;
-    setBid: React.Dispatch<React.SetStateAction<number>>;
     bidModalOpen: boolean;
     setBidModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
     handleBidChange: (delta: number) => void;

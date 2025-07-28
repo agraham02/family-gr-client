@@ -2,7 +2,6 @@ import React from "react";
 import Card from "./Card";
 import { cn } from "@/lib/utils";
 import { PlayingCard } from "@/types";
-import { AnimatePresence, motion } from "motion/react";
 
 export default function CardHand({
     playerName,
