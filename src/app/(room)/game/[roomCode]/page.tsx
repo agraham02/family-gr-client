@@ -2,11 +2,12 @@
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { useSession } from "@/contexts/SessionContext";
 import React, { useEffect, useState, useCallback } from "react";
-import Dominoes from "@/components/games/dominoes";
+import Dominoes from "@/components/games/dominoes/index";
 import Spades from "@/components/games/spades/index";
 import GamePausedOverlay from "@/components/games/GamePausedOverlay";
 import {
     DominoesData,
+    DominoesPlayerData,
     GameData,
     GameEventPayload,
     PlayerData,
@@ -197,7 +198,10 @@ export default function GamePage() {
 
             {/* Game UI */}
             {gameData.type === "dominoes" && playerData && (
-                <Dominoes gameData={gameData as DominoesData} />
+                <Dominoes
+                    gameData={gameData as DominoesData}
+                    playerData={playerData as DominoesPlayerData}
+                />
             )}
             {gameData.type === "spades" && playerData && (
                 <Spades

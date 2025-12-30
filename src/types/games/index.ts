@@ -1,5 +1,5 @@
 import { User } from "..";
-import { DominoesData } from "./dominoes";
+import { DominoesData, DominoesPlayerData } from "./dominoes";
 import { SpadesData, SpadesPlayerData } from "./spades";
 
 export type BaseGameEvent = {
@@ -31,7 +31,7 @@ export type BasePlayerData = {
 };
 
 export type GameData = DominoesData | SpadesData;
-export type PlayerData = SpadesPlayerData;
+export type PlayerData = SpadesPlayerData | DominoesPlayerData;
 
 export * from "./dominoes";
 export * from "./spades";

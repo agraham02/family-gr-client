@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
+import { Input } from "../ui/input";
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { useSession } from "@/contexts/SessionContext";
 import { toast } from "sonner";
@@ -14,6 +15,9 @@ export default function RoomControlsCard({
 }) {
     const { socket, connected } = useWebSocket();
     const { userId, roomId } = useSession();
+
+    // Game-specific settings
+    const [dominoesWinTarget, setDominoesWinTarget] = useState<number>(100);
 
     function handleCloseRoom() {
         if (!socket || !connected) {
@@ -29,7 +33,22 @@ export default function RoomControlsCard({
             toast.error("Not connected to the server");
             return;
         }
-        socket.emit("start_game", { roomId, userId, gameType: selectedGame });
+
+        // Build game-specific settings
+        let gameSettings: Record<string, unknown> | undefined;
+
+        if (selectedGame === "dominoes") {
+            gameSettings = {
+                winTarget: dominoesWinTarget,
+            };
+        }
+
+        socket.emit("start_game", {
+            roomId,
+            userId,
+            gameType: selectedGame,
+            gameSettings,
+        });
     }
 
     return (
@@ -38,6 +57,49 @@ export default function RoomControlsCard({
                 <CardTitle>Room Controls</CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
+                {/* Game-specific settings */}
+                {isPartyLeader && selectedGame === "dominoes" && (
+                    <div className="space-y-2 p-3 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
+                        <div className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                            Dominoes Settings
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <label
+                                htmlFor="winTarget"
+                                className="text-sm text-zinc-600 dark:text-zinc-400 whitespace-nowrap"
+                            >
+                                Win Target:
+                            </label>
+                            <Input
+                                id="winTarget"
+                                type="number"
+                                min={50}
+                                max={500}
+                                step={25}
+                                value={dominoesWinTarget}
+                                onChange={(e) =>
+                                    setDominoesWinTarget(
+                                        Math.max(
+                                            50,
+                                            Math.min(
+                                                500,
+                                                Number(e.target.value) || 100
+                                            )
+                                        )
+                                    )
+                                }
+                                className="w-24"
+                            />
+                            <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                                points
+                            </span>
+                        </div>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                            First player to reach this score wins the game.
+                        </p>
+                    </div>
+                )}
+
                 <Button
                     variant="destructive"
                     className="w-full"
