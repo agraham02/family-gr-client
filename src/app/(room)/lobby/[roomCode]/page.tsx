@@ -15,13 +15,14 @@ import { Button } from "@/components/ui/button";
 import { motion } from "framer-motion";
 import { useSession } from "@/contexts/SessionContext";
 import { toast } from "sonner";
-import { LobbyData, RoomEventPayload } from "@/types";
+import { LobbyData } from "@/types";
 import LobbyDashboard from "@/components/lobby/LobbyDashboard";
 import { LobbySkeleton } from "@/components/skeletons";
 import { ClipboardIcon } from "lucide-react";
+import { useRoomEvents } from "@/hooks/useRoomEvents";
 
 export default function LobbyPage() {
-    const { socket, connected } = useWebSocket();
+    const { connected } = useWebSocket();
     const [lobbyData, setLobbyData] = useState<LobbyData | null>(null);
     const { roomCode }: { roomCode: string } = useParams();
     const {
@@ -32,122 +33,68 @@ export default function LobbyPage() {
         setUserId,
         setUserName,
         initializing,
-        clearRoomSession,
     } = useSession();
     const [showModal, setShowModal] = useState(false);
     const [pendingName, setPendingName] = useState("");
-    const [hasJoined, setHasJoined] = useState(false);
+    const [isJoining, setIsJoining] = useState(false);
     const router = useRouter();
 
-    const handleReconnect = useCallback(async () => {
-        if (!userName || !roomCode) return;
+    // Use the shared room events hook
+    useRoomEvents({
+        roomCode,
+        onSync: (roomState) => {
+            setLobbyData(roomState);
+        },
+        // Don't auto-navigate from lobby - let the hook handle game_started
+        autoNavigateOnGameStart: true,
+    });
+
+    // Handle joining room via REST API when we have userName but no roomId
+    const handleJoinRoom = useCallback(async () => {
+        if (!userName || !roomCode || isJoining) return;
+
+        setIsJoining(true);
         try {
             const res = await joinRoom(userName, roomCode, userId);
-            // console.log("Reconnected with response:", res);
             if (res.roomId !== roomId) {
                 setRoomId(res.roomId);
             }
             if (res.userId !== userId) {
                 setUserId(res.userId);
             }
-            setHasJoined(true);
         } catch (error) {
             toast.error(
                 "Failed to join room: " +
                     (error instanceof Error ? error.message : "Unknown error")
             );
             router.push("/");
+        } finally {
+            setIsJoining(false);
         }
-    }, [userName, roomCode, userId, roomId, setUserId, setRoomId, router]);
+    }, [
+        userName,
+        roomCode,
+        userId,
+        roomId,
+        setUserId,
+        setRoomId,
+        router,
+        isJoining,
+    ]);
 
+    // Show name modal if no userName
     useEffect(() => {
-        if (!initializing) setShowModal(!userName);
+        if (!initializing && !userName) {
+            setShowModal(true);
+        }
     }, [userName, initializing]);
 
+    // Join room when we have userName but no roomId
     useEffect(() => {
-        if (!userName || !roomCode || hasJoined) return;
-        handleReconnect();
-    }, [userName, roomCode, hasJoined, handleReconnect]);
-
-    useEffect(() => {
-        if (!socket || !connected || !roomId || !userId) return;
-
-        function handleRoomEvent(payload: RoomEventPayload) {
-            console.log("📨 Room event:", payload);
-            setLobbyData(payload.roomState);
-
-            // If we're on the lobby page but room has an active game, redirect to game
-            if (
-                payload.event === "sync" &&
-                payload.roomState.state === "in-game"
-            ) {
-                toast.info("Rejoining active game...");
-                router.push(`/game/${roomCode}`);
-                return;
-            }
-
-            switch (payload.event) {
-                case "game_started":
-                    toast.info(`Starting ${payload.gameType} game...`);
-                    router.push(`/game/${roomCode}`);
-                    break;
-                case "user_joined":
-                case "user_left":
-                    toast.info(
-                        `${payload.userName} ${
-                            payload.event === "user_joined" ? "joined" : "left"
-                        }`
-                    );
-                    break;
-                case "room_closed":
-                    toast.warning("Room has been closed by the leader");
-                    clearRoomSession();
-                    router.push("/");
-                    break;
-                case "user_kicked":
-                    if (payload.userId === userId) {
-                        toast.error("You have been kicked from the room.");
-                        clearRoomSession();
-                        router.push("/");
-                    } else {
-                        toast.info(
-                            `${
-                                payload.userName || "A player"
-                            } was kicked from the room.`
-                        );
-                    }
-                    break;
-                case "leader_promoted":
-                    if (payload.newLeaderId === userId) {
-                        toast.info("You are now the room leader!");
-                    } else {
-                        toast.info(
-                            `${payload.newLeaderName} is now the room leader.`
-                        );
-                    }
-                    break;
-                case "game_aborted":
-                    if (payload.reason === "reconnect_timeout") {
-                        toast.warning(
-                            "Game was aborted: Players did not reconnect in time."
-                        );
-                    } else if (payload.reason === "not_enough_players") {
-                        toast.warning("Game was aborted: Not enough players.");
-                    } else {
-                        toast.info("Game was aborted.");
-                    }
-                    break;
-            }
+        if (!initializing && userName && !roomId && roomCode) {
+            handleJoinRoom();
         }
-
-        socket.on("room_event", handleRoomEvent);
-
-        // Note: join_room is now automatically emitted by WebSocketContext on connect
-
-        return () => {
-            socket.off("room_event", handleRoomEvent);
-        };
-    }, [socket, connected, roomId, userId, roomCode, router]);
+    }, [initializing, userName, roomId, roomCode, handleJoinRoom]);
 
     function handleNameSubmit(e: React.FormEvent) {
         e.preventDefault();
@@ -157,7 +104,10 @@ export default function LobbyPage() {
         }
     }
 
-    if (!hasJoined) {
+    // Show skeleton while initializing, joining, or waiting for lobby data
+    const isLoading = initializing || isJoining || !lobbyData;
+
+    if (isLoading) {
         return (
             <>
                 <LobbySkeleton />
@@ -193,38 +143,35 @@ export default function LobbyPage() {
     }
 
     return (
-        <>
-            <main className="px-4 py-8 flex flex-col items-center">
-                <header className="text-center">
-                    <div>
-                        <h1 className="text-3xl font-bold">
-                            {lobbyData?.name}
-                        </h1>
-                    </div>
-                    <div className="flex items-center justify-center">
-                        {/* <h2 className="text-xl font-semibold">Lobby Details</h2> */}
-                        <p className="text-xl">Room Code: {lobbyData?.code}</p>
-                        <div className="mx-2">
-                            <Button
-                                variant="outline"
-                                onClick={() => {
-                                    navigator.clipboard.writeText(
-                                        lobbyData?.code ?? ""
-                                    );
-                                    toast.success(
-                                        "Room code copied to clipboard"
-                                    );
-                                }}
-                            >
-                                {/* copy icon */}
-                                <ClipboardIcon className="w-2 h-2" />
-                            </Button>
-                        </div>
-                    </div>
-                </header>
+        <main className="px-4 py-8 flex flex-col items-center">
+            <header className="text-center">
+                <div>
+                    <h1 className="text-3xl font-bold">
+                        {lobbyData.name || "Lobby"}
+                    </h1>
+                </div>
+                <div className="flex items-center justify-center gap-2">
+                    <p className="text-xl">Room Code: {lobbyData.code}</p>
+                    <Button
+                        variant="outline"
+                        size="icon"
+                        onClick={() => {
+                            navigator.clipboard.writeText(lobbyData.code);
+                            toast.success("Room code copied to clipboard");
+                        }}
+                        title="Copy room code"
+                    >
+                        <ClipboardIcon className="w-4 h-4" />
+                    </Button>
+                    {!connected && (
+                        <span className="text-sm text-yellow-500">
+                            (Reconnecting...)
+                        </span>
+                    )}
+                </div>
+            </header>
 
-                {lobbyData && <LobbyDashboard lobbyData={lobbyData} />}
-            </main>
-        </>
+            <LobbyDashboard lobbyData={lobbyData} />
+        </main>
     );
 }

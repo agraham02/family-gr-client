@@ -1,24 +1,21 @@
 "use client";
+
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { useSession } from "@/contexts/SessionContext";
 import React, { useEffect, useState, useCallback } from "react";
 import GamePausedOverlay from "@/components/games/GamePausedOverlay";
 import { getGameComponent } from "@/components/games/registry";
 import { GameSkeleton } from "@/components/skeletons";
-import {
-    GameData,
-    GameEventPayload,
-    PlayerData,
-    User,
-    RoomEventPayload,
-} from "@/types";
+import { GameData, GameEventPayload, PlayerData, User } from "@/types";
 import { toast } from "sonner";
 import { useRouter, useParams } from "next/navigation";
+import { useRoomEvents } from "@/hooks/useRoomEvents";
+import { getSocket, emitJoinRoom } from "@/lib/socket";
 
 export default function GamePage() {
-    const { roomId, userId, clearRoomSession } = useSession();
-    const { socket, connected } = useWebSocket();
-    const { roomCode } = useParams();
+    const { roomId, userId } = useSession();
+    const { socket, connected, emit } = useWebSocket();
+    const { roomCode }: { roomCode: string } = useParams();
     const [gameData, setGameData] = useState<GameData | null>(null);
     const [playerData, setPlayerData] = useState<PlayerData | null>(null);
     const [isPaused, setIsPaused] = useState(false);
@@ -27,6 +24,28 @@ export default function GamePage() {
     const [leaderId, setLeaderId] = useState<string | null>(null);
     const router = useRouter();
 
+    // Use shared room events hook for common events
+    useRoomEvents({
+        roomCode,
+        autoNavigateOnGameStart: false, // Already on game page
+        onSync: (roomState) => {
+            // Update leader from room state
+            setLeaderId(roomState.leaderId);
+            // If room is in lobby state, redirect back to lobby
+            if (roomState.state === "lobby") {
+                toast.info("Game ended. Returning to lobby.");
+                router.push(`/lobby/${roomCode}`);
+            }
+        },
+        onGameAborted: () => {
+            setIsPaused(false);
+            setTimeoutAt(null);
+            setDisconnectedPlayers([]);
+            router.push(`/lobby/${roomCode}`);
+        },
+    });
+
+    // Handle game-specific events
     const handleGameEvent = useCallback(
         (payload: GameEventPayload) => {
             console.log("📨 Game event:", payload);
@@ -39,29 +58,14 @@ export default function GamePage() {
                         payload.gameState.players
                     ).filter((p) => p.isConnected === false);
                     setDisconnectedPlayers(disconnected);
-                    if (socket)
-                        socket.emit("get_player_state", { roomId, userId });
+                    // Request player-specific state
+                    emit("get_player_state", { roomId, userId });
                     break;
                 case "player_sync":
                     setPlayerData(payload.playerState);
                     break;
                 case "player_left":
                     toast.info(`${payload.userName} has left the game.`);
-                    break;
-                case "game_aborted":
-                    setIsPaused(false);
-                    setTimeoutAt(null);
-                    setDisconnectedPlayers([]);
-                    if (payload.reason === "reconnect_timeout") {
-                        toast.warning(
-                            "Game aborted: Players did not reconnect in time."
-                        );
-                    } else {
-                        toast.info(
-                            "The game has been aborted. Returning to lobby."
-                        );
-                    }
-                    router.push(`/lobby/${roomCode}`);
                     break;
                 case "game_paused":
                     setIsPaused(true);
@@ -77,9 +81,6 @@ export default function GamePage() {
                     toast.success("Game resumed!");
                     break;
                 case "user_disconnected":
-                    toast.warning(
-                        `${payload.userName || "A player"} disconnected.`
-                    );
                     // Add to disconnected list if not already there
                     setDisconnectedPlayers((prev) => {
                         if (prev.some((p) => p.id === payload.userId))
@@ -95,9 +96,6 @@ export default function GamePage() {
                     });
                     break;
                 case "user_reconnected":
-                    toast.success(
-                        `${payload.userName || "A player"} reconnected!`
-                    );
                     // Remove from disconnected list
                     setDisconnectedPlayers((prev) =>
                         prev.filter((p) => p.id !== payload.userId)
@@ -105,70 +103,37 @@ export default function GamePage() {
                     break;
             }
         },
-        [socket, roomId, userId, router, roomCode]
+        [emit, roomId, userId]
     );
 
-    const handleRoomEvent = useCallback(
-        (payload: RoomEventPayload) => {
-            console.log("📨 Room event (game page):", payload);
-            switch (payload.event) {
-                case "leader_promoted":
-                    setLeaderId(payload.newLeaderId);
-                    if (payload.newLeaderId === userId) {
-                        toast.info("You are now the room leader!");
-                    } else {
-                        toast.info(
-                            `${payload.newLeaderName} is now the room leader.`
-                        );
-                    }
-                    break;
-                case "game_aborted":
-                    setIsPaused(false);
-                    setTimeoutAt(null);
-                    setDisconnectedPlayers([]);
-                    router.push(`/lobby/${roomCode}`);
-                    break;
-                case "user_kicked":
-                    // Check if the current user was kicked
-                    if (payload.userId === userId) {
-                        toast.error("You have been kicked from the game.");
-                        clearRoomSession();
-                        router.push("/");
-                    } else {
-                        toast.info(
-                            `${
-                                payload.userName || "A player"
-                            } was kicked from the game.`
-                        );
-                        // Remove from disconnected list if they were there
-                        setDisconnectedPlayers((prev) =>
-                            prev.filter((p) => p.id !== payload.userId)
-                        );
-                    }
-                    break;
-            }
-        },
-        [userId, router, roomCode]
-    );
-
+    // Set up game event listeners
     useEffect(() => {
-        if (!socket || !connected || !roomId || !userId) return;
+        if (!roomId || !userId) return;
 
-        socket.on("game_event", handleGameEvent);
-        socket.on("room_event", handleRoomEvent);
+        const sock = getSocket();
 
-        socket.emit("get_game_state", { roomId, userId });
-        socket.emit("get_player_state", { roomId, userId });
+        sock.on("game_event", handleGameEvent);
+
+        // Request game state when connected
+        const requestGameState = () => {
+            sock.emit("get_game_state", { roomId, userId });
+            sock.emit("get_player_state", { roomId, userId });
+        };
+
+        if (sock.connected) {
+            requestGameState();
+        } else {
+            sock.on("connect", requestGameState);
+        }
 
         return () => {
-            socket.off("game_event", handleGameEvent);
-            socket.off("room_event", handleRoomEvent);
+            sock.off("game_event", handleGameEvent);
+            sock.off("connect", requestGameState);
         };
-    }, [socket, connected, roomId, userId, handleGameEvent, handleRoomEvent]);
+    }, [roomId, userId, handleGameEvent]);
 
     function handleKickPlayer(targetUserId: string) {
-        if (!socket || !roomId) return;
-        socket.emit("kick_user", { roomId, userId, targetUserId });
+        emit("kick_user", { roomId, userId, targetUserId });
     }
 
     function handleLeaveGame() {

@@ -138,14 +138,19 @@ export default function Home() {
     const [loadingCreate, setLoadingCreate] = useState(false);
     const [loadingJoin, setLoadingJoin] = useState(false);
     const router = useRouter();
-    const { setUserId, setRoomId, setUserName } = useSession();
+    const { setSessionData } = useSession();
 
     const handleSuccess = (
         res: { userId: string; roomId: string; roomCode: string },
+        userName: string
     ) => {
-        setUserId(res.userId);
-        setRoomId(res.roomId);
-        setUserName(name);
+        // Batch all state updates to prevent multiple WebSocket reconnections
+        setSessionData({
+            userName,
+            userId: res.userId,
+            roomId: res.roomId,
+        });
+        // Navigate after state is set
         router.push(`/lobby/${res.roomCode}`);
     };
 
@@ -154,7 +159,7 @@ export default function Home() {
         await toast.promise(createRoom(name, roomName), {
             loading: "Creating room...",
             success: (res) => {
-                handleSuccess(res);
+                handleSuccess(res, name);
                 return "Room created successfully!";
             },
             error: (err) => {
@@ -171,7 +176,7 @@ export default function Home() {
         await toast.promise(joinRoom(name, roomCode), {
             loading: "Joining room...",
             success: (res) => {
-                handleSuccess(res);
+                handleSuccess(res, name);
                 return "Joined room successfully!";
             },
             error: (err) => {
