@@ -3,6 +3,21 @@ import Card from "./Card";
 import { cn } from "@/lib/utils";
 import { PlayingCard } from "@/types";
 
+// Responsive card overlap styles
+// Uses clamp() to scale overlap based on viewport width
+const CARD_OVERLAP_STYLES = {
+    horizontal: {
+        // For side players: overlap vertically
+        marginTop: "clamp(-1rem, -2vw, -2rem)",
+        marginLeft: "clamp(-1rem, -2vw, -2rem)",
+    },
+    vertical: {
+        // For top/bottom players: overlap horizontally
+        marginLeft: "clamp(-1rem, -3vw, -2rem)",
+        marginBottom: "clamp(-1.5rem, -4vw, -3rem)",
+    },
+};
+
 export default function CardHand({
     playerName,
     isCurrentPlayer,
@@ -23,6 +38,10 @@ export default function CardHand({
     // If not local player and no cards array, render card backs/count only
     const shouldShowCardBacks =
         !isLocalPlayer && (!cards || cards.length === 0) && cardCount;
+
+    const overlapStyle = isSide
+        ? CARD_OVERLAP_STYLES.horizontal
+        : CARD_OVERLAP_STYLES.vertical;
 
     return (
         <div>
@@ -56,11 +75,7 @@ export default function CardHand({
                                   orientation={
                                       isSide ? "horizontal" : "vertical"
                                   }
-                                  className={cn(
-                                      isSide
-                                          ? "mt-[-2rem] ml-[-2rem]"
-                                          : "ml-[-2rem] mb-[-3rem]"
-                                  )}
+                                  style={overlapStyle}
                                   asInteractive={false}
                               />
                           ))
@@ -72,12 +87,8 @@ export default function CardHand({
                               hidden={!isLocalPlayer}
                               size={isLocalPlayer ? "md" : "sm"}
                               orientation={isSide ? "horizontal" : "vertical"}
-                              className={cn(
-                                  "border-1",
-                                  isSide
-                                      ? "mt-[-2rem] ml-[-2rem]"
-                                      : "ml-[-2rem] mb-[-3rem]"
-                              )}
+                              className="border-1"
+                              style={overlapStyle}
                               asInteractive={isLocalPlayer}
                               onClick={
                                   isLocalPlayer && handleCardPlay

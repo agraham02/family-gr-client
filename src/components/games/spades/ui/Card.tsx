@@ -16,6 +16,7 @@ interface CardProps {
     size?: "xs" | "sm" | "md" | "lg";
     asInteractive?: boolean;
     className?: string;
+    style?: React.CSSProperties;
     orientation?: "horizontal" | "vertical";
     index?: number;
     onClick?: () => void;
@@ -53,6 +54,7 @@ function CardComponent({
     size = "md",
     asInteractive = false,
     className,
+    style,
     orientation = "vertical",
     index = 0,
     onClick,
@@ -76,7 +78,7 @@ function CardComponent({
                     "hover:scale-[1.02] active:scale-[0.98] transition-transform duration-100 cursor-pointer",
                 className
             )}
-            style={{ zIndex: index }}
+            style={{ zIndex: index, ...style }}
             role="img"
             aria-label={
                 showBack

@@ -5,6 +5,13 @@ export interface PlayingCard {
     suit: "Spades" | "Hearts" | "Diamonds" | "Clubs";
 }
 
+export interface SpadesSettings {
+    allowNil: boolean;
+    bagsPenalty: number;
+    winTarget: number;
+    blindNilEnabled: boolean;
+}
+
 export type SpadesData = BaseGameData & {
     hands: string[][];
     id: string;
@@ -31,7 +38,7 @@ export type SpadesData = BaseGameData & {
         | "round-summary"
         | "finished";
     round: number;
-    settings: Record<string, unknown>;
+    settings: SpadesSettings;
     history: string[];
     handsCounts: Record<string, number>;
     lastTrickWinnerId?: string;

@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { User } from "@/types";
 import { Loader2, UserX, Clock } from "lucide-react";
 
@@ -23,6 +24,8 @@ export default function GamePausedOverlay({
     onLeaveGame,
 }: GamePausedOverlayProps) {
     const [timeRemaining, setTimeRemaining] = useState<string>("");
+    const [kickTarget, setKickTarget] = useState<User | null>(null);
+    const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
     useEffect(() => {
         if (!isPaused || !timeoutAt) {
@@ -102,7 +105,7 @@ export default function GamePausedOverlay({
                                             variant="destructive"
                                             size="sm"
                                             onClick={() =>
-                                                onKickPlayer(player.id)
+                                                setKickTarget(player)
                                             }
                                         >
                                             Kick
@@ -119,11 +122,45 @@ export default function GamePausedOverlay({
                     <Button
                         variant="outline"
                         className="w-full mt-2"
-                        onClick={onLeaveGame}
+                        onClick={() => setShowLeaveConfirm(true)}
                     >
                         Leave Game
                     </Button>
                 )}
+
+                {/* Kick Confirmation Dialog */}
+                <ConfirmDialog
+                    open={!!kickTarget}
+                    title="Kick Player"
+                    description={`Are you sure you want to kick ${
+                        kickTarget?.name || "this player"
+                    }? They will be removed from the game.`}
+                    confirmText="Kick"
+                    cancelText="Cancel"
+                    variant="destructive"
+                    onConfirm={() => {
+                        if (kickTarget && onKickPlayer) {
+                            onKickPlayer(kickTarget.id);
+                            setKickTarget(null);
+                        }
+                    }}
+                    onCancel={() => setKickTarget(null)}
+                />
+
+                {/* Leave Game Confirmation Dialog */}
+                <ConfirmDialog
+                    open={showLeaveConfirm}
+                    title="Leave Game"
+                    description="Are you sure you want to leave the game? You may not be able to rejoin."
+                    confirmText="Leave"
+                    cancelText="Stay"
+                    variant="destructive"
+                    onConfirm={() => {
+                        setShowLeaveConfirm(false);
+                        onLeaveGame?.();
+                    }}
+                    onCancel={() => setShowLeaveConfirm(false)}
+                />
             </DialogContent>
         </Dialog>
     );

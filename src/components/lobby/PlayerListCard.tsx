@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
+import { ConfirmDialog } from "../ui/confirm-dialog";
 import { User } from "@/types";
 import { useSession } from "@/contexts/SessionContext";
 import { useWebSocket } from "@/contexts/WebSocketContext";
@@ -21,6 +22,12 @@ export default function PlayerListCard({
     const { socket, connected } = useWebSocket();
     const { userId, roomId } = useSession();
     const [isReady, setIsReady] = useState(!!readyStates[userId]);
+    const [kickTarget, setKickTarget] = useState<User | null>(null);
+
+    // Sync local ready state with server state when readyStates changes
+    useEffect(() => {
+        setIsReady(!!readyStates[userId]);
+    }, [readyStates, userId]);
 
     function handleToggleReady() {
         if (!socket || !connected) {
@@ -32,9 +39,23 @@ export default function PlayerListCard({
         setIsReady((prev) => !prev);
     }
 
-    function handleKick(userId: string) {
-        // TODO: socket.emit("kick_user", { userId })
-        toast(`Kicked user ${userId}`);
+    function handleKick(user: User) {
+        setKickTarget(user);
+    }
+
+    function confirmKick() {
+        if (!socket || !connected) {
+            toast.error("Not connected to the server");
+            return;
+        }
+        if (kickTarget) {
+            socket.emit("kick_user", {
+                roomId,
+                userId,
+                targetUserId: kickTarget.id,
+            });
+            setKickTarget(null);
+        }
     }
 
     function handlePromote(newLeaderId: string) {
@@ -115,9 +136,7 @@ export default function PlayerListCard({
                                                 size="sm"
                                                 variant="outline"
                                                 className="text-red-600 border-red-300 dark:border-red-600"
-                                                onClick={() =>
-                                                    handleKick(user.id)
-                                                }
+                                                onClick={() => handleKick(user)}
                                             >
                                                 Kick
                                             </Button>
@@ -139,6 +158,20 @@ export default function PlayerListCard({
                     })}
                 </AnimatePresence>
             </CardContent>
+
+            {/* Kick Confirmation Dialog */}
+            <ConfirmDialog
+                open={!!kickTarget}
+                title="Kick Player"
+                description={`Are you sure you want to kick ${
+                    kickTarget?.name || "this player"
+                } from the room?`}
+                confirmText="Kick"
+                cancelText="Cancel"
+                variant="destructive"
+                onConfirm={confirmKick}
+                onCancel={() => setKickTarget(null)}
+            />
         </Card>
     );
 }

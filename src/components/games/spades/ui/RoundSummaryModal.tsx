@@ -2,7 +2,9 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useSession } from "@/contexts/SessionContext";
 import { SpadesData } from "@/types/games/spades";
-import React from "react";
+import React, { useEffect, useState } from "react";
+
+const AUTO_CONTINUE_SECONDS = 10;
 
 export default function RoundSummaryModal({
     gameData,
@@ -12,9 +14,27 @@ export default function RoundSummaryModal({
     sendGameAction: (type: string, payload: unknown) => void;
 }) {
     const { userId } = useSession();
+    const isLeader = userId === gameData.leaderId;
+    const isOpen = gameData.phase === "round-summary";
+
+    // Countdown timer for auto-continue
+    const [countdown, setCountdown] = useState(AUTO_CONTINUE_SECONDS);
+
+    useEffect(() => {
+        if (!isOpen || !isLeader) {
+            setCountdown(AUTO_CONTINUE_SECONDS);
+            return;
+        }
+
+        const interval = setInterval(() => {
+            setCountdown((prev) => Math.max(0, prev - 1));
+        }, 1000);
+
+        return () => clearInterval(interval);
+    }, [isOpen, isLeader]);
 
     return (
-        <Dialog open={gameData.phase === "round-summary"}>
+        <Dialog open={isOpen}>
             <DialogContent className="flex flex-col items-center gap-4 max-w-lg">
                 <DialogTitle>
                     <span className="text-2xl font-bold text-cyan-700 mb-2">
@@ -78,14 +98,14 @@ export default function RoundSummaryModal({
                         </div>
                     ))}
                 </div>
-                {userId === gameData.leaderId && (
+                {isLeader && (
                     <Button
                         className="mt-6 w-full text-base font-semibold py-3 rounded-lg shadow-md transition-colors"
                         onClick={() =>
                             sendGameAction("CONTINUE_AFTER_ROUND_SUMMARY", {})
                         }
                     >
-                        Continue
+                        Continue {countdown > 0 && `(${countdown}s)`}
                     </Button>
                 )}
             </DialogContent>

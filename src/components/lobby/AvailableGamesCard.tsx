@@ -59,13 +59,29 @@ export default function AvailableGamesCard({
                         disabled={!isPartyLeader}
                         aria-disabled={!isPartyLeader}
                     >
-                        <div className="flex w-full flex-wrap items-center gap-3 min-w-0 p-2">
-                            <span className="truncate min-w-0 font-medium">
-                                {game.displayName}
-                            </span>
-                            <span className="text-xs whitespace-nowrap">
-                                {game.minPlayers} - {game.maxPlayers} players
-                            </span>
+                        <div className="flex w-full flex-col items-start gap-1 min-w-0 p-2">
+                            <div className="flex w-full flex-wrap items-center gap-3 min-w-0">
+                                <span className="truncate min-w-0 font-medium">
+                                    {game.displayName}
+                                </span>
+                                <span className="text-xs whitespace-nowrap opacity-75">
+                                    {game.minPlayers === game.maxPlayers
+                                        ? `${game.minPlayers} players`
+                                        : `${game.minPlayers} - ${game.maxPlayers} players`}
+                                </span>
+                            </div>
+                            {game.description && (
+                                <span
+                                    className={cn(
+                                        "text-xs text-left",
+                                        selectedGame === game.type
+                                            ? "text-blue-100"
+                                            : "text-zinc-500 dark:text-zinc-400"
+                                    )}
+                                >
+                                    {game.description}
+                                </span>
+                            )}
                         </div>
                     </Button>
                 ))}

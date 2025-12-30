@@ -17,6 +17,7 @@ import { useSession } from "@/contexts/SessionContext";
 import { toast } from "sonner";
 import { LobbyData, RoomEventPayload } from "@/types";
 import LobbyDashboard from "@/components/lobby/LobbyDashboard";
+import { LobbySkeleton } from "@/components/skeletons";
 import { ClipboardIcon } from "lucide-react";
 
 export default function LobbyPage() {
@@ -31,6 +32,7 @@ export default function LobbyPage() {
         setUserId,
         setUserName,
         initializing,
+        clearRoomSession,
     } = useSession();
     const [showModal, setShowModal] = useState(false);
     const [pendingName, setPendingName] = useState("");
@@ -99,11 +101,13 @@ export default function LobbyPage() {
                     break;
                 case "room_closed":
                     toast.warning("Room has been closed by the leader");
+                    clearRoomSession();
                     router.push("/");
                     break;
                 case "user_kicked":
                     if (payload.userId === userId) {
                         toast.error("You have been kicked from the room.");
+                        clearRoomSession();
                         router.push("/");
                     } else {
                         toast.info(
@@ -156,9 +160,7 @@ export default function LobbyPage() {
     if (!hasJoined) {
         return (
             <>
-                <div className="flex items-center justify-center h-screen">
-                    <p className="text-lg">Joining room...</p>
-                </div>
+                <LobbySkeleton />
                 <Dialog open={showModal}>
                     <DialogContent>
                         <motion.form

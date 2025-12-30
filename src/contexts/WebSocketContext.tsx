@@ -67,11 +67,10 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
 
         socket.on("disconnect", (reason) => {
             setConnected(false);
-            // If disconnected due to transport close or ping timeout, socket.io will auto-reconnect
-            if (reason === "io server disconnect") {
-                // Server disconnected us, we need to manually reconnect
-                socket.connect();
-            }
+            // Socket.io will handle reconnection with exponential backoff
+            // for all disconnect reasons (transport close, ping timeout, server disconnect)
+            // No manual socket.connect() needed - let the built-in reconnection handle it
+            console.log(`Socket disconnected: ${reason}`);
         });
 
         socket.on("reconnecting", () => {

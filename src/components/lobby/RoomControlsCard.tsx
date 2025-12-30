@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import { ConfirmDialog } from "../ui/confirm-dialog";
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { useSession } from "@/contexts/SessionContext";
 import { toast } from "sonner";
@@ -18,14 +19,20 @@ export default function RoomControlsCard({
 
     // Game-specific settings
     const [dominoesWinTarget, setDominoesWinTarget] = useState<number>(100);
+    const [showCloseConfirm, setShowCloseConfirm] = useState(false);
 
     function handleCloseRoom() {
+        setShowCloseConfirm(true);
+    }
+
+    function confirmCloseRoom() {
         if (!socket || !connected) {
             toast.error("Not connected to the server");
             return;
         }
         socket.emit("close_room", { roomId, userId });
         toast.warning("Room closed");
+        setShowCloseConfirm(false);
     }
 
     function handleStartGame() {
@@ -112,6 +119,18 @@ export default function RoomControlsCard({
                         Start Game
                     </Button>
                 )}
+
+                {/* Close Room Confirmation Dialog */}
+                <ConfirmDialog
+                    open={showCloseConfirm}
+                    title="Close Room"
+                    description="Are you sure you want to close this room? All players will be disconnected."
+                    confirmText="Close Room"
+                    cancelText="Cancel"
+                    variant="destructive"
+                    onConfirm={confirmCloseRoom}
+                    onCancel={() => setShowCloseConfirm(false)}
+                />
             </CardContent>
         </Card>
     );

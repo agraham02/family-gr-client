@@ -2,17 +2,13 @@
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { useSession } from "@/contexts/SessionContext";
 import React, { useEffect, useState, useCallback } from "react";
-import Dominoes from "@/components/games/dominoes/index";
-import Spades from "@/components/games/spades/index";
 import GamePausedOverlay from "@/components/games/GamePausedOverlay";
+import { getGameComponent } from "@/components/games/registry";
+import { GameSkeleton } from "@/components/skeletons";
 import {
-    DominoesData,
-    DominoesPlayerData,
     GameData,
     GameEventPayload,
     PlayerData,
-    SpadesData,
-    SpadesPlayerData,
     User,
     RoomEventPayload,
 } from "@/types";
@@ -20,7 +16,7 @@ import { toast } from "sonner";
 import { useRouter, useParams } from "next/navigation";
 
 export default function GamePage() {
-    const { roomId, userId } = useSession();
+    const { roomId, userId, clearRoomSession } = useSession();
     const { socket, connected } = useWebSocket();
     const { roomCode } = useParams();
     const [gameData, setGameData] = useState<GameData | null>(null);
@@ -136,6 +132,7 @@ export default function GamePage() {
                     // Check if the current user was kicked
                     if (payload.userId === userId) {
                         toast.error("You have been kicked from the game.");
+                        clearRoomSession();
                         router.push("/");
                     } else {
                         toast.info(
@@ -179,7 +176,7 @@ export default function GamePage() {
     }
 
     if (!gameData) {
-        return <div>Loading...</div>;
+        return <GameSkeleton />;
     }
 
     const isLeader = leaderId === userId;
@@ -197,23 +194,22 @@ export default function GamePage() {
             />
 
             {/* Game UI */}
-            {gameData.type === "dominoes" && playerData && (
-                <Dominoes
-                    gameData={gameData as DominoesData}
-                    playerData={playerData as DominoesPlayerData}
-                />
-            )}
-            {gameData.type === "spades" && playerData && (
-                <Spades
-                    gameData={gameData as SpadesData}
-                    playerData={playerData as SpadesPlayerData}
-                />
-            )}
-            {gameData.type !== "dominoes" && gameData.type !== "spades" && (
-                <div className="text-zinc-500 dark:text-zinc-400">
-                    No game UI available
-                </div>
-            )}
+            {(() => {
+                const GameComponent = getGameComponent(gameData.type);
+                if (GameComponent && playerData) {
+                    return (
+                        <GameComponent
+                            gameData={gameData}
+                            playerData={playerData}
+                        />
+                    );
+                }
+                return (
+                    <div className="text-zinc-500 dark:text-zinc-400">
+                        No game UI available for &quot;{gameData.type}&quot;
+                    </div>
+                );
+            })()}
         </main>
     );
 }

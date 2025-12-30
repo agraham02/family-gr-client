@@ -16,6 +16,7 @@ interface SessionContextValue {
     setUserName: (name: string) => void;
     initializing: boolean;
     clearSession: () => void;
+    clearRoomSession: () => void;
 }
 
 const SessionContext = createContext<SessionContextValue | undefined>(
@@ -48,16 +49,21 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
     }, []);
 
-    // Sync to localStorage on change
+    // Atomic sync to localStorage - prevents race conditions on tab close
     useEffect(() => {
-        if (roomId) localStorage.setItem("roomId", roomId);
-    }, [roomId]);
-    useEffect(() => {
-        if (userId) localStorage.setItem("userId", userId);
-    }, [userId]);
-    useEffect(() => {
-        if (userName) localStorage.setItem("userName", userName);
-    }, [userName]);
+        if (initializing) return; // Don't write during initialization
+
+        // Write all values atomically
+        if (roomId) {
+            localStorage.setItem("roomId", roomId);
+        }
+        if (userId) {
+            localStorage.setItem("userId", userId);
+        }
+        if (userName) {
+            localStorage.setItem("userName", userName);
+        }
+    }, [roomId, userId, userName, initializing]);
 
     // Setters that update state and localStorage
     const setRoomId = (id: string) => setRoomIdState(id);
@@ -74,6 +80,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem("userName");
     };
 
+    // Clear room-specific session data but preserve userName
+    // Useful when kicked or room is closed - user shouldn't have to re-enter name
+    const clearRoomSession = () => {
+        setRoomIdState("");
+        setUserIdState("");
+        localStorage.removeItem("roomId");
+        localStorage.removeItem("userId");
+    };
+
     return (
         <SessionContext.Provider
             value={{
@@ -85,6 +100,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
                 setUserName,
                 initializing,
                 clearSession,
+                clearRoomSession,
             }}
         >
             {children}

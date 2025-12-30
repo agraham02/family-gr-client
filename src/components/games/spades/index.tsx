@@ -65,6 +65,17 @@ export default function Spades({
 
             return () => clearTimeout(timer);
         }
+        // Auto-continue from round-summary after timeout (includes on refresh/mount)
+        if (
+            gameData.phase === "round-summary" &&
+            userId === gameData.leaderId
+        ) {
+            const timer = setTimeout(() => {
+                sendGameAction("CONTINUE_AFTER_ROUND_SUMMARY", {});
+            }, 10000); // 10 seconds to allow viewing the summary
+
+            return () => clearTimeout(timer);
+        }
     }, [
         gameData.phase,
         isMyTurn,
@@ -88,6 +99,8 @@ export default function Spades({
                 teams={gameData.teams}
                 bids={gameData.bids}
                 playOrder={gameData.playOrder}
+                roundTrickCounts={gameData.roundTrickCounts}
+                phase={gameData.phase}
             />
             <Button
                 className="fixed bottom-6 right-6 z-40 px-4 py-2 rounded-lg shadow-md bg-cyan-600 text-white hover:bg-cyan-700 transition-colors"
