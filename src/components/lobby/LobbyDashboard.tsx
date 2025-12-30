@@ -3,6 +3,7 @@ import { getAvailableGames } from "@/services/lobby";
 import { useSession } from "@/contexts/SessionContext";
 import { toast } from "sonner";
 import { GameTypeMetadata, LobbyData } from "@/types";
+import { motion } from "framer-motion";
 import PlayerListCard from "@/components/lobby/PlayerListCard";
 import AvailableGamesCard from "@/components/lobby/AvailableGamesCard";
 import TeamAssignmentCard from "@/components/lobby/TeamAssignmentCard";
@@ -52,36 +53,68 @@ export default function LobbyDashboard({
         setSelectedGame(lobbyData.selectedGameType);
     }, [lobbyData.selectedGameType]);
 
+    const containerVariants = {
+        hidden: { opacity: 0 },
+        visible: {
+            opacity: 1,
+            transition: {
+                staggerChildren: 0.1,
+            },
+        },
+    };
+
+    const itemVariants = {
+        hidden: { opacity: 0, y: 20 },
+        visible: { opacity: 1, y: 0 },
+    };
+
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full my-8 mx-auto px-5 md:px-10">
-            <PlayerListCard
-                users={lobbyData.users}
-                leaderId={lobbyData.leaderId}
-                readyStates={lobbyData.readyStates}
-                isPartyLeader={isPartyLeader}
-            />
-
-            <AvailableGamesCard
-                availableGames={availableGames}
-                selectedGame={selectedGame}
-                isPartyLeader={isPartyLeader}
-            />
-
-            {selectedGameMetadata?.requiresTeams && (
-                <TeamAssignmentCard
-                    users={users}
-                    teams={teams}
-                    selectedGameMetadata={selectedGameMetadata}
+        <motion.div
+            variants={containerVariants}
+            initial="hidden"
+            animate="visible"
+            className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 w-full max-w-6xl mx-auto mt-6 md:mt-8 px-0"
+        >
+            {/* Left Column - Players */}
+            <motion.div variants={itemVariants} className="lg:col-span-4">
+                <PlayerListCard
+                    users={lobbyData.users}
+                    leaderId={lobbyData.leaderId}
+                    readyStates={lobbyData.readyStates}
                     isPartyLeader={isPartyLeader}
                 />
-            )}
+            </motion.div>
 
-            {isPartyLeader && (
-                <RoomControlsCard
+            {/* Middle Column - Games */}
+            <motion.div variants={itemVariants} className="lg:col-span-4">
+                <AvailableGamesCard
+                    availableGames={availableGames}
                     selectedGame={selectedGame}
                     isPartyLeader={isPartyLeader}
                 />
-            )}
-        </div>
+            </motion.div>
+
+            {/* Right Column - Teams & Controls */}
+            <motion.div
+                variants={itemVariants}
+                className="lg:col-span-4 flex flex-col gap-4 md:gap-6"
+            >
+                {selectedGameMetadata?.requiresTeams && (
+                    <TeamAssignmentCard
+                        users={users}
+                        teams={teams}
+                        selectedGameMetadata={selectedGameMetadata}
+                        isPartyLeader={isPartyLeader}
+                    />
+                )}
+
+                {isPartyLeader && (
+                    <RoomControlsCard
+                        selectedGame={selectedGame}
+                        isPartyLeader={isPartyLeader}
+                    />
+                )}
+            </motion.div>
+        </motion.div>
     );
 }
