@@ -1,10 +1,10 @@
 import { useWebSocket } from "@/contexts/WebSocketContext";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/contexts/SessionContext";
-import GameTable from "./ui/GameTable";
-import SpadesGameInfo from "./ui/SpadesGameInfo";
-import { SpadesData, SpadesPlayerData } from "@/types";
+import SpadesGameTable from "./ui/SpadesGameTable";
+import { GameScoreboard } from "@/components/games/shared";
+import { SpadesData, SpadesPlayerData, PlayingCard } from "@/types";
 import PlaceBidModal from "./ui/PlaceBidModal";
 import RoundSummaryModal from "./ui/RoundSummaryModal";
 
@@ -47,10 +47,30 @@ export default function Spades({
         setBid(0); // Reset bid after submitting
     }
 
-    function handleCardPlay(card: { suit: string; rank: string }) {
-        if (!isMyTurn) return;
-        sendGameAction("PLAY_CARD", { card });
-    }
+    const handleCardPlay = useCallback(
+        (card: PlayingCard) => {
+            if (!isMyTurn) return;
+            sendGameAction("PLAY_CARD", { card });
+        },
+        [isMyTurn, sendGameAction]
+    );
+
+    // Build team scores for scoreboard
+    const teamScores = Object.entries(gameData.teams).map(([teamId, team]) => ({
+        teamId,
+        teamName: `Team ${Number(teamId) + 1}`,
+        players: team.players.map((pid) => gameData.players[pid]?.name || pid),
+        score: team.score,
+        roundScore: gameData.roundTeamScores?.[Number(teamId)],
+    }));
+
+    // Build player bids for scoreboard
+    const playerBids = gameData.playOrder.map((playerId) => ({
+        playerId,
+        playerName: gameData.players[playerId]?.name || playerId,
+        bid: gameData.bids[playerId]?.amount ?? null,
+        tricksWon: gameData.roundTrickCounts?.[playerId] ?? 0,
+    }));
 
     useEffect(() => {
         if (isMyTurn && isBiddingPhase) {
@@ -86,22 +106,23 @@ export default function Spades({
     ]);
 
     return (
-        <div className="h-full w-full">
-            <div className="h-[90vh] w-full">
-                <GameTable
-                    gameData={gameData}
-                    playerData={playerData}
-                    handleCardPlay={handleCardPlay}
-                />
-            </div>
-            <SpadesGameInfo
-                players={gameData.players}
-                teams={gameData.teams}
-                bids={gameData.bids}
-                playOrder={gameData.playOrder}
-                roundTrickCounts={gameData.roundTrickCounts}
-                phase={gameData.phase}
+        <div className="h-screen w-full overflow-hidden">
+            <SpadesGameTable
+                gameData={gameData}
+                playerData={playerData}
+                isMyTurn={isMyTurn}
+                onCardPlay={handleCardPlay}
             />
+
+            {/* Scoreboard */}
+            <GameScoreboard
+                teams={teamScores}
+                playerBids={playerBids}
+                round={gameData.round}
+                phase={gameData.phase}
+                winTarget={gameData.settings?.winTarget}
+            />
+
             <Button
                 className="fixed bottom-6 right-6 z-40 px-4 py-2 rounded-lg shadow-md bg-cyan-600 text-white hover:bg-cyan-700 transition-colors"
                 onClick={() => setBidModalOpen(true)}

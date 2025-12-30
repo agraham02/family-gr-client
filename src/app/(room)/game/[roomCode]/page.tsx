@@ -147,7 +147,7 @@ export default function GamePage() {
     const isLeader = leaderId === userId;
 
     return (
-        <main className="flex flex-col items-center justify-center min-h-screen bg-zinc-50 dark:bg-zinc-950">
+        <main className="h-screen w-full overflow-hidden bg-zinc-50 dark:bg-zinc-950">
             {/* Game Paused Overlay */}
             <GamePausedOverlay
                 isPaused={isPaused}
@@ -170,7 +170,7 @@ export default function GamePage() {
                     );
                 }
                 return (
-                    <div className="text-zinc-500 dark:text-zinc-400">
+                    <div className="flex items-center justify-center h-full text-zinc-500 dark:text-zinc-400">
                         No game UI available for &quot;{gameData.type}&quot;
                     </div>
                 );
