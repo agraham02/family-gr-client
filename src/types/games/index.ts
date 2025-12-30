@@ -10,7 +10,11 @@ export type GameEventPayload =
     | (BaseGameEvent & { event: "sync"; gameState: GameData })
     | { event: "player_sync"; playerState: PlayerData }
     | { event: "player_left"; userName: string }
-    | { event: "game_aborted"; reason: string };
+    | { event: "game_aborted"; reason: string }
+    | { event: "game_paused"; reason: string; timeoutAt: string }
+    | { event: "game_resumed" }
+    | { event: "user_disconnected"; userName?: string; userId: string }
+    | { event: "user_reconnected"; userName?: string; userId: string };
 
 export type Players = Record<string, User>;
 

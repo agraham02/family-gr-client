@@ -73,6 +73,17 @@ export default function LobbyPage() {
         function handleRoomEvent(payload: RoomEventPayload) {
             console.log("📨 Room event:", payload);
             setLobbyData(payload.roomState);
+
+            // If we're on the lobby page but room has an active game, redirect to game
+            if (
+                payload.event === "sync" &&
+                payload.roomState.state === "in-game"
+            ) {
+                toast.info("Rejoining active game...");
+                router.push(`/game/${roomCode}`);
+                return;
+            }
+
             switch (payload.event) {
                 case "game_started":
                     toast.info(`Starting ${payload.gameType} game...`);
@@ -90,12 +101,44 @@ export default function LobbyPage() {
                     toast.warning("Room has been closed by the leader");
                     router.push("/");
                     break;
+                case "user_kicked":
+                    if (payload.userId === userId) {
+                        toast.error("You have been kicked from the room.");
+                        router.push("/");
+                    } else {
+                        toast.info(
+                            `${
+                                payload.userName || "A player"
+                            } was kicked from the room.`
+                        );
+                    }
+                    break;
+                case "leader_promoted":
+                    if (payload.newLeaderId === userId) {
+                        toast.info("You are now the room leader!");
+                    } else {
+                        toast.info(
+                            `${payload.newLeaderName} is now the room leader.`
+                        );
+                    }
+                    break;
+                case "game_aborted":
+                    if (payload.reason === "reconnect_timeout") {
+                        toast.warning(
+                            "Game was aborted: Players did not reconnect in time."
+                        );
+                    } else if (payload.reason === "not_enough_players") {
+                        toast.warning("Game was aborted: Not enough players.");
+                    } else {
+                        toast.info("Game was aborted.");
+                    }
+                    break;
             }
         }
 
         socket.on("room_event", handleRoomEvent);
 
-        socket.emit("join_room", { roomId, userId });
+        // Note: join_room is now automatically emitted by WebSocketContext on connect
 
         return () => {
             socket.off("room_event", handleRoomEvent);

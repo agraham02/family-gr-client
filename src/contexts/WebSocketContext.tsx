@@ -15,6 +15,7 @@ import { SOCKET_BASE } from "@/services";
 interface WebSocketContextValue {
     socket: Socket | null;
     connected: boolean;
+    reconnecting: boolean;
     send: <T>(event: string, payload: T) => void;
 }
 
@@ -35,6 +36,7 @@ interface WebSocketProviderProps {
 
 export function WebSocketProvider({ children }: WebSocketProviderProps) {
     const [connected, setConnected] = useState(false);
+    const [reconnecting, setReconnecting] = useState(false);
     const socketRef = useRef<Socket | null>(null);
     const { roomId, userId } = useSession();
 
@@ -49,15 +51,41 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
             autoConnect: true,
             timeout: 20000,
             forceNew: true, // Ensure fresh connection
+            reconnection: true, // Enable automatic reconnection
+            reconnectionAttempts: 10, // Max reconnection attempts
+            reconnectionDelay: 1000, // Initial delay between reconnection attempts
+            reconnectionDelayMax: 5000, // Max delay between attempts
         });
         socketRef.current = socket;
 
         socket.on("connect", () => {
             setConnected(true);
+            setReconnecting(false);
+            // Re-join the room on (re)connect to trigger rejoin logic on the server
+            socket.emit("join_room", { roomId, userId });
         });
 
         socket.on("disconnect", (reason) => {
             setConnected(false);
+            // If disconnected due to transport close or ping timeout, socket.io will auto-reconnect
+            if (reason === "io server disconnect") {
+                // Server disconnected us, we need to manually reconnect
+                socket.connect();
+            }
+        });
+
+        socket.on("reconnecting", () => {
+            setReconnecting(true);
+        });
+
+        socket.on("reconnect", () => {
+            setReconnecting(false);
+            toast.success("Reconnected to server!");
+        });
+
+        socket.on("reconnect_failed", () => {
+            setReconnecting(false);
+            toast.error("Failed to reconnect. Please refresh the page.");
         });
 
         socket.on("connect_error", (error) => {
@@ -69,17 +97,16 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
         });
 
         socket.on("error", (error) => {
-            // console.error("🚨 WebSocket error:", error);
             toast.error(error.error || "WebSocket error occurred");
         });
 
         return () => {
-            // console.log("🧹 Cleaning up WebSocket connection");
             if (socketRef.current) {
                 socketRef.current.disconnect();
                 socketRef.current = null;
             }
             setConnected(false);
+            setReconnecting(false);
         };
     }, [roomId, userId]);
 
@@ -91,7 +118,7 @@ export function WebSocketProvider({ children }: WebSocketProviderProps) {
 
     return (
         <WebSocketContext.Provider
-            value={{ socket: socketRef.current, connected, send }}
+            value={{ socket: socketRef.current, connected, reconnecting, send }}
         >
             {children}
         </WebSocketContext.Provider>

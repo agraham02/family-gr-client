@@ -1,6 +1,7 @@
 export type User = {
     id: string;
     name: string;
+    isConnected?: boolean;
 };
 
 export type GameTypeMetadata = {

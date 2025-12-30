@@ -15,6 +15,7 @@ interface SessionContextValue {
     userName: string;
     setUserName: (name: string) => void;
     initializing: boolean;
+    clearSession: () => void;
 }
 
 const SessionContext = createContext<SessionContextValue | undefined>(
@@ -36,9 +37,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         if (typeof window !== "undefined") {
-            const storedRoomId = sessionStorage.getItem("roomId") ?? "";
-            const storedUserId = sessionStorage.getItem("userId") ?? "";
-            const storedUserName = sessionStorage.getItem("userName") ?? "";
+            // Use localStorage for persistence across browser sessions (enables rejoin after tab close)
+            const storedRoomId = localStorage.getItem("roomId") ?? "";
+            const storedUserId = localStorage.getItem("userId") ?? "";
+            const storedUserName = localStorage.getItem("userName") ?? "";
             setRoomId(storedRoomId);
             setUserId(storedUserId);
             setUserName(storedUserName);
@@ -46,21 +48,31 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         }
     }, []);
 
-    // Sync to sessionStorage on change
+    // Sync to localStorage on change
     useEffect(() => {
-        if (roomId) sessionStorage.setItem("roomId", roomId);
+        if (roomId) localStorage.setItem("roomId", roomId);
     }, [roomId]);
     useEffect(() => {
-        if (userId) sessionStorage.setItem("userId", userId);
+        if (userId) localStorage.setItem("userId", userId);
     }, [userId]);
     useEffect(() => {
-        if (userName) sessionStorage.setItem("userName", userName);
+        if (userName) localStorage.setItem("userName", userName);
     }, [userName]);
 
-    // Setters that update state and sessionStorage
+    // Setters that update state and localStorage
     const setRoomId = (id: string) => setRoomIdState(id);
     const setUserId = (id: string) => setUserIdState(id);
     const setUserName = (name: string) => setUserNameState(name);
+
+    // Clear session data (useful when leaving room or on error)
+    const clearSession = () => {
+        setRoomIdState("");
+        setUserIdState("");
+        setUserNameState("");
+        localStorage.removeItem("roomId");
+        localStorage.removeItem("userId");
+        localStorage.removeItem("userName");
+    };
 
     return (
         <SessionContext.Provider
@@ -72,6 +84,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
                 userName,
                 setUserName,
                 initializing,
+                clearSession,
             }}
         >
             {children}
