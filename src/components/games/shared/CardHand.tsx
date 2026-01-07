@@ -165,43 +165,46 @@ function CardInHand({
                 marginLeft: isHorizontal ? (index === 0 ? 0 : -spacing) : 0,
                 marginTop: isHorizontal ? 0 : index === 0 ? 0 : -spacing,
                 zIndex,
+                willChange: "transform, opacity",
             }}
             initial={{
                 opacity: 0,
-                scale: 0.5,
-                y: isHorizontal ? 50 : 0,
-                x: isHorizontal ? 0 : 50,
+                transform: `translate3d(0px, ${
+                    isHorizontal ? -30 : 0
+                }px, 0px) scale(0.3)`,
             }}
             animate={{
                 opacity: 1,
-                scale: 1,
-                y: yOffset,
-                x: xOffset,
+                transform: `translate3d(${xOffset}px, ${yOffset}px, 0px) scale(1)`,
             }}
             exit={{
                 opacity: 0,
-                scale: 0.5,
-                y: isHorizontal ? -50 : 0,
-                x: isHorizontal ? 0 : -50,
+                transform: `translate3d(${isHorizontal ? 0 : -40}px, ${
+                    isHorizontal ? -40 : 0
+                }px, 0px) scale(0.6)`,
             }}
             transition={{
-                type: "spring",
-                stiffness: 400,
-                damping: 25,
-                delay: index * 0.03,
+                duration: 0.12,
+                ease: "easeOut",
             }}
             whileHover={
                 isInteractive && !isDisabled
                     ? {
-                          y: isHorizontal ? yOffset - 12 : yOffset,
-                          x: isHorizontal ? xOffset : xOffset - 12,
-                          scale: 1.05,
-                          transition: { duration: 0.15 },
+                          transform: `translate3d(${
+                              isHorizontal ? xOffset : xOffset - 12
+                          }px, ${
+                              isHorizontal ? yOffset - 12 : yOffset
+                          }px, 0px) scale(1.05)`,
+                          transition: { duration: 0.1 },
                       }
                     : undefined
             }
             whileTap={
-                isInteractive && !isDisabled ? { scale: 0.98 } : undefined
+                isInteractive && !isDisabled
+                    ? {
+                          transform: `translate3d(${xOffset}px, ${yOffset}px, 0px) scale(0.98)`,
+                      }
+                    : undefined
             }
             onClick={isInteractive && !isDisabled ? onClick : undefined}
         >
@@ -391,10 +394,10 @@ function CardHand({
                             totalCards={displayCards.length}
                             isHidden={!isLocalPlayer}
                             isSelected={selectedIndex === index}
-                            isDisabled={
-                                disabledIndices.includes(index) || isDealing
+                            isDisabled={disabledIndices.includes(index)}
+                            isInteractive={
+                                interactive && isLocalPlayer && !isDealing
                             }
-                            isInteractive={interactive && isLocalPlayer}
                             size={responsiveSize}
                             spacing={spacing}
                             playerId={playerId}

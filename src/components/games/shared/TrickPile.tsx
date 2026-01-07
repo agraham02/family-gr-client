@@ -23,17 +23,39 @@ interface TrickPileProps {
     className?: string;
 }
 
-// Card positions in the trick pile - creates a natural spread
-const CARD_POSITIONS = [
-    { x: 0, y: 0, rotation: -3 },
-    { x: 50, y: -8, rotation: 5 },
-    { x: -50, y: 8, rotation: -5 },
-    { x: 20, y: 40, rotation: 8 },
-    { x: -20, y: -40, rotation: -8 },
-    { x: 60, y: 30, rotation: 12 },
-    { x: -60, y: -30, rotation: -10 },
-    { x: 0, y: 55, rotation: 3 },
-];
+// Card positions in the trick pile - creates a natural spread with random variation
+function getCardPosition(
+    index: number,
+    playerId: string
+): { x: number; y: number; rotation: number } {
+    // Base positions for up to 8 cards
+    const basePositions = [
+        { x: 0, y: 0 },
+        { x: 45, y: -5 },
+        { x: -45, y: 5 },
+        { x: 20, y: 35 },
+        { x: -20, y: -35 },
+        { x: 55, y: 25 },
+        { x: -55, y: -25 },
+        { x: 0, y: 50 },
+    ];
+
+    const base = basePositions[index % basePositions.length];
+
+    // Add slight random variation based on playerId (deterministic per card)
+    const hash = playerId
+        .split("")
+        .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const randomRotation = (hash % 25) - 12 + index * 3; // -12 to +12 degrees base + slight increment
+    const randomOffsetX = (hash % 10) - 5;
+    const randomOffsetY = ((hash * 7) % 10) - 5;
+
+    return {
+        x: base.x + randomOffsetX,
+        y: base.y + randomOffsetY,
+        rotation: randomRotation,
+    };
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Suit map for rendering
@@ -80,17 +102,18 @@ function TrickPile({
                         play.card.rank === winningCard.rank &&
                         play.card.suit === winningCard.suit;
 
-                    const pos = CARD_POSITIONS[index % CARD_POSITIONS.length];
+                    const pos = getCardPosition(index, play.playerId);
 
                     return (
                         <motion.div
                             key={`${play.playerId}-${play.card.rank}-${play.card.suit}`}
                             className="absolute"
                             initial={{
-                                scale: 0.3,
+                                scale: 0.5,
                                 opacity: 0,
                                 x: 0,
-                                y: 80,
+                                y: 60,
+                                rotate: 0,
                             }}
                             animate={{
                                 scale: 1,
@@ -100,15 +123,19 @@ function TrickPile({
                                 rotate: pos.rotation,
                             }}
                             exit={{
-                                scale: 0.5,
+                                scale: 0.3,
                                 opacity: 0,
-                                y: -60,
-                                transition: { duration: 0.3 },
+                                y: -40,
+                                transition: {
+                                    duration: 0.15,
+                                    ease: "easeIn",
+                                },
                             }}
                             transition={{
                                 type: "spring",
-                                stiffness: 350,
-                                damping: 25,
+                                stiffness: 500,
+                                damping: 30,
+                                mass: 0.8,
                             }}
                             style={{ zIndex: index }}
                         >

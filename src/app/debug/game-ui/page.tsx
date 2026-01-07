@@ -8,9 +8,11 @@ import {
     EdgeRegion,
     CardHand,
     CardDeck,
+    DealingCard,
     PlayerInfo,
     TrickPile,
     EdgePosition,
+    useGameTable,
 } from "@/components/games/shared";
 import { PlayingCard as PlayingCardType } from "@/types";
 import { Button } from "@/components/ui/button";
@@ -18,6 +20,34 @@ import { Slider } from "@/components/ui/slider";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DealingCardsOverlay - Uses GameTable context for dimensions
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface DealingCardsOverlayProps {
+    dealingCards: { id: string; targetPosition: EdgePosition; delay: number }[];
+}
+
+function DealingCardsOverlay({ dealingCards }: DealingCardsOverlayProps) {
+    const { dimensions } = useGameTable();
+
+    return (
+        <AnimatePresence>
+            {dealingCards.map((dealCard) => (
+                <DealingCard
+                    key={dealCard.id}
+                    targetPosition={dealCard.targetPosition}
+                    delay={dealCard.delay}
+                    containerDimensions={{
+                        width: dimensions.width,
+                        height: dimensions.height,
+                    }}
+                />
+            ))}
+        </AnimatePresence>
+    );
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Mock Data Generation
@@ -136,6 +166,9 @@ export default function GameUIDebugPage() {
         { playerId: string; card: PlayingCardType; playerName: string }[]
     >([]);
     const [deckCount, setDeckCount] = useState(52);
+    const [dealingCards, setDealingCards] = useState<
+        { id: string; targetPosition: EdgePosition; delay: number }[]
+    >([]);
 
     // Current players based on count
     const players = useMemo(
@@ -143,34 +176,73 @@ export default function GameUIDebugPage() {
         [playerCount]
     );
 
-    // Deal cards handler
+    // Deal cards handler - deals one player at a time like a real dealer
     const handleDeal = useCallback(async () => {
         setIsDealing(true);
         setHands([]);
         setTrickPlays([]);
         setSelectedCardIndex(null);
+        setDealingCards([]);
 
-        // Simulate dealing animation
-        await new Promise((resolve) => setTimeout(resolve, 500));
+        // Brief pause before dealing starts
+        await new Promise((resolve) => setTimeout(resolve, 200));
 
         const deck = shuffleDeck(generateDeck());
         const cardsPerPlayer = Math.floor(52 / playerCount);
         const dealtHands = dealCards(deck, playerCount, cardsPerPlayer);
 
-        // Animate cards appearing one by one
-        for (let i = 0; i < cardsPerPlayer; i++) {
-            await new Promise((resolve) => setTimeout(resolve, 80));
+        // Initialize empty hands for all players
+        setHands(Array.from({ length: playerCount }, () => []));
+
+        // Deal cards one at a time, cycling through players (like a real dealer)
+        // Ultra fast - 52 cards in ~3 seconds (~20ms per card)
+        const CARD_INTERVAL = 20; // Total time per card
+
+        // Build the deal sequence
+        const dealSequence: {
+            player: number;
+            card: PlayingCardType;
+            position: EdgePosition;
+        }[] = [];
+        for (let round = 0; round < cardsPerPlayer; round++) {
+            for (let p = 0; p < playerCount; p++) {
+                const card = dealtHands[p][round];
+                if (card) {
+                    dealSequence.push({
+                        player: p,
+                        card,
+                        position: getEdgePosition(p, playerCount),
+                    });
+                }
+            }
+        }
+
+        // Deal cards with batched updates
+        for (let i = 0; i < dealSequence.length; i++) {
+            const { player, card, position } = dealSequence[i];
+            const dealingCardId = `deal-${i}`;
+
+            // Start flying animation and update deck count together
+            setDealingCards([
+                { id: dealingCardId, targetPosition: position, delay: 0 },
+            ]);
+            setDeckCount(52 - i - 1);
+
+            // Wait for animation, then update hand
+            await new Promise((resolve) =>
+                setTimeout(resolve, CARD_INTERVAL - 10)
+            );
+
+            // Add card to hand and clear flying card in one go
             setHands((prev) => {
                 const newHands = [...prev];
-                for (let p = 0; p < playerCount; p++) {
-                    if (!newHands[p]) newHands[p] = [];
-                    if (dealtHands[p][i]) {
-                        newHands[p] = [...newHands[p], dealtHands[p][i]];
-                    }
-                }
+                newHands[player] = [...(newHands[player] || []), card];
                 return newHands;
             });
-            setDeckCount((prev) => Math.max(0, prev - playerCount));
+            setDealingCards([]);
+
+            // Small gap before next card
+            await new Promise((resolve) => setTimeout(resolve, 10));
         }
 
         setIsDealing(false);
@@ -183,6 +255,7 @@ export default function GameUIDebugPage() {
         setSelectedCardIndex(null);
         setDeckCount(52);
         setActivePlayerIndex(0);
+        setDealingCards([]);
     }, []);
 
     // Play card handler
@@ -418,12 +491,18 @@ export default function GameUIDebugPage() {
                             />
                         )}
 
-                        {/* Show dealing animation */}
+                        {/* Show dealing animation with flying cards */}
                         {isDealing && (
-                            <CardDeck
-                                cardCount={deckCount}
-                                isDealing={isDealing}
-                            />
+                            <div className="relative">
+                                <CardDeck
+                                    cardCount={deckCount}
+                                    isDealing={isDealing}
+                                />
+                                {/* Flying cards during deal */}
+                                <DealingCardsOverlay
+                                    dealingCards={dealingCards}
+                                />
+                            </div>
                         )}
 
                         {/* Trick pile when playing */}
