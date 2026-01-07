@@ -81,13 +81,40 @@ function GameTable({
                     className
                 )}
             >
-                {/* Felt texture overlay */}
+                {/* Felt texture overlay - using layered gradients for scalable texture */}
                 <div
-                    className="absolute inset-0 pointer-events-none opacity-30"
+                    className="absolute inset-0 pointer-events-none"
                     style={{
                         backgroundImage: `
-                            radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.4) 100%),
-                            url("data:image/svg+xml,%3Csvg viewBox='0 0 100 100' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")
+                            radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.35) 100%),
+                            repeating-linear-gradient(
+                                0deg,
+                                transparent,
+                                transparent 2px,
+                                rgba(0,0,0,0.03) 2px,
+                                rgba(0,0,0,0.03) 4px
+                            ),
+                            repeating-linear-gradient(
+                                90deg,
+                                transparent,
+                                transparent 2px,
+                                rgba(0,0,0,0.03) 2px,
+                                rgba(0,0,0,0.03) 4px
+                            ),
+                            repeating-linear-gradient(
+                                45deg,
+                                transparent,
+                                transparent 3px,
+                                rgba(255,255,255,0.02) 3px,
+                                rgba(255,255,255,0.02) 6px
+                            ),
+                            repeating-linear-gradient(
+                                -45deg,
+                                transparent,
+                                transparent 3px,
+                                rgba(0,0,0,0.02) 3px,
+                                rgba(0,0,0,0.02) 6px
+                            )
                         `,
                     }}
                 />

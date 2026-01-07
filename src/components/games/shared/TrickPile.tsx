@@ -105,121 +105,123 @@ function TrickPile({
                     const pos = getCardPosition(index, play.playerId);
 
                     return (
+                        // Outer wrapper: handles layoutId transition (flies from hand to center)
                         <motion.div
                             key={`${play.playerId}-${play.card.rank}-${play.card.suit}`}
+                            layoutId={`${play.playerId}-card-${play.card.suit}-${play.card.rank}`}
                             className="absolute"
-                            initial={{
-                                scale: 0.5,
-                                opacity: 0,
-                                x: 0,
-                                y: 60,
-                                rotate: 0,
-                            }}
-                            animate={{
-                                scale: 1,
-                                opacity: 1,
-                                x: pos.x,
-                                y: pos.y,
-                                rotate: pos.rotation,
-                            }}
-                            exit={{
-                                scale: 0.3,
-                                opacity: 0,
-                                y: -40,
-                                transition: {
-                                    duration: 0.15,
-                                    ease: "easeIn",
+                            style={{ zIndex: index }}
+                            initial={false}
+                            transition={{
+                                layout: {
+                                    type: "spring",
+                                    stiffness: 350,
+                                    damping: 30,
                                 },
                             }}
-                            transition={{
-                                type: "spring",
-                                stiffness: 500,
-                                damping: 30,
-                                mass: 0.8,
-                            }}
-                            style={{ zIndex: index }}
                         >
-                            {/* Card */}
+                            {/* Inner wrapper: handles offset position within pile (no animation) */}
                             <div
-                                className={cn(
-                                    "relative w-14 h-20 md:w-16 md:h-24 rounded-lg bg-white shadow-xl",
-                                    "border border-gray-200 overflow-hidden",
-                                    isWinning &&
-                                        "ring-4 ring-amber-400 shadow-amber-400/50"
-                                )}
+                                style={{
+                                    transform: `translate(${pos.x}px, ${pos.y}px) rotate(${pos.rotation}deg)`,
+                                }}
                             >
-                                {/* Card content */}
-                                <div className="absolute inset-0 flex flex-col p-1">
-                                    {/* Top-left */}
-                                    <div
-                                        className={cn(
-                                            "text-[10px] md:text-xs font-bold flex flex-col items-center leading-tight",
-                                            SUIT_COLORS[play.card.suit]
-                                        )}
-                                    >
-                                        <span>{play.card.rank}</span>
-                                        <span className="-mt-0.5">
-                                            {SUIT_MAP[play.card.suit]}
-                                        </span>
-                                    </div>
-
-                                    {/* Center */}
-                                    <div
-                                        className={cn(
-                                            "flex-1 flex items-center justify-center text-xl md:text-2xl",
-                                            SUIT_COLORS[play.card.suit]
-                                        )}
-                                    >
-                                        {SUIT_MAP[play.card.suit]}
-                                    </div>
-
-                                    {/* Bottom-right (rotated) */}
-                                    <div
-                                        className={cn(
-                                            "text-[10px] md:text-xs font-bold flex flex-col items-center leading-tight rotate-180",
-                                            SUIT_COLORS[play.card.suit]
-                                        )}
-                                    >
-                                        <span>{play.card.rank}</span>
-                                        <span className="-mt-0.5">
-                                            {SUIT_MAP[play.card.suit]}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Winning indicator */}
-                            {isWinning && (
+                                {/* Card */}
                                 <motion.div
-                                    className="absolute -top-2 -right-2 w-6 h-6 bg-amber-400 rounded-full flex items-center justify-center shadow-lg"
-                                    initial={{ scale: 0 }}
-                                    animate={{ scale: 1 }}
+                                    className={cn(
+                                        "relative w-14 h-20 md:w-16 md:h-24 rounded-lg bg-white shadow-xl",
+                                        "border border-gray-200 overflow-hidden",
+                                        isWinning &&
+                                            "ring-4 ring-amber-400 shadow-amber-400/50"
+                                    )}
+                                    initial={{ scale: 0.85, opacity: 0.5 }}
+                                    animate={{ scale: 1, opacity: 1 }}
+                                    exit={{
+                                        scale: 0.3,
+                                        opacity: 0,
+                                        transition: {
+                                            duration: 0.15,
+                                            ease: "easeIn",
+                                        },
+                                    }}
                                     transition={{
-                                        type: "spring",
-                                        stiffness: 400,
-                                        damping: 15,
-                                        delay: 0.2,
+                                        duration: 0.15,
+                                        ease: "easeOut",
                                     }}
                                 >
-                                    <span className="text-amber-900 text-xs font-bold">
-                                        ✓
-                                    </span>
-                                </motion.div>
-                            )}
+                                    {/* Card content */}
+                                    <div className="absolute inset-0 flex flex-col p-1">
+                                        {/* Top-left */}
+                                        <div
+                                            className={cn(
+                                                "text-[10px] md:text-xs font-bold flex flex-col items-center leading-tight",
+                                                SUIT_COLORS[play.card.suit]
+                                            )}
+                                        >
+                                            <span>{play.card.rank}</span>
+                                            <span className="-mt-0.5">
+                                                {SUIT_MAP[play.card.suit]}
+                                            </span>
+                                        </div>
 
-                            {/* Player name label */}
-                            {play.playerName && (
-                                <motion.div
-                                    className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap"
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    transition={{ delay: 0.1 }}
-                                >
-                                    <span className="text-[10px] text-white/70 font-medium bg-black/30 px-2 py-0.5 rounded-full">
-                                        {play.playerName}
-                                    </span>
+                                        {/* Center */}
+                                        <div
+                                            className={cn(
+                                                "flex-1 flex items-center justify-center text-xl md:text-2xl",
+                                                SUIT_COLORS[play.card.suit]
+                                            )}
+                                        >
+                                            {SUIT_MAP[play.card.suit]}
+                                        </div>
+
+                                        {/* Bottom-right (rotated) */}
+                                        <div
+                                            className={cn(
+                                                "text-[10px] md:text-xs font-bold flex flex-col items-center leading-tight rotate-180",
+                                                SUIT_COLORS[play.card.suit]
+                                            )}
+                                        >
+                                            <span>{play.card.rank}</span>
+                                            <span className="-mt-0.5">
+                                                {SUIT_MAP[play.card.suit]}
+                                            </span>
+                                        </div>
+                                    </div>
                                 </motion.div>
-                            )}
+
+                                {/* Winning indicator */}
+                                {isWinning && (
+                                    <motion.div
+                                        className="absolute -top-2 -right-2 w-6 h-6 bg-amber-400 rounded-full flex items-center justify-center shadow-lg"
+                                        initial={{ scale: 0 }}
+                                        animate={{ scale: 1 }}
+                                        transition={{
+                                            type: "spring",
+                                            stiffness: 400,
+                                            damping: 15,
+                                            delay: 0.2,
+                                        }}
+                                    >
+                                        <span className="text-amber-900 text-xs font-bold">
+                                            ✓
+                                        </span>
+                                    </motion.div>
+                                )}
+
+                                {/* Player name label */}
+                                {play.playerName && (
+                                    <motion.div
+                                        className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap"
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: 1 }}
+                                        transition={{ delay: 0.1 }}
+                                    >
+                                        <span className="text-[10px] text-white/70 font-medium bg-black/30 px-2 py-0.5 rounded-full">
+                                            {play.playerName}
+                                        </span>
+                                    </motion.div>
+                                )}
+                            </div>
                         </motion.div>
                     );
                 })}

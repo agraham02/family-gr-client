@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useMemo } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence, LayoutGroup } from "motion/react";
 import {
     GameTable,
     TableCenter,
@@ -425,171 +425,183 @@ export default function GameUIDebugPage() {
 
             {/* Game Table - Full viewport size, page scrolls to reveal */}
             <div className="h-screen w-full">
-                <GameTable
-                    playerCount={playerCount}
-                    isDealing={isDealing}
-                    showDebugGrid={showDebugGrid}
-                >
-                    {/* Player Edge Regions */}
-                    {players.map((player, index) => {
-                        const isLocal = index === 0;
-                        const isCurrentTurn = activePlayerIndex === index;
-                        const hand = hands[index] || [];
-                        const bid = Math.floor(Math.random() * 5) + 1;
-                        const tricksWon = Math.floor(Math.random() * (bid + 1));
-                        const edgePosition = getEdgePosition(
-                            index,
-                            playerCount
-                        );
+                <LayoutGroup>
+                    <GameTable
+                        playerCount={playerCount}
+                        isDealing={isDealing}
+                        showDebugGrid={showDebugGrid}
+                    >
+                        {/* Player Edge Regions */}
+                        {players.map((player, index) => {
+                            const isLocal = index === 0;
+                            const isCurrentTurn = activePlayerIndex === index;
+                            const hand = hands[index] || [];
+                            const bid = Math.floor(Math.random() * 5) + 1;
+                            const tricksWon = Math.floor(
+                                Math.random() * (bid + 1)
+                            );
+                            const edgePosition = getEdgePosition(
+                                index,
+                                playerCount
+                            );
 
-                        return (
-                            <EdgeRegion
-                                key={player.id}
-                                position={edgePosition}
-                                isHero={isLocal}
-                                isDealing={isDealing}
-                            >
-                                <PlayerInfo
-                                    playerId={player.id}
-                                    playerName={player.name}
-                                    isCurrentTurn={isCurrentTurn}
-                                    isLocalPlayer={isLocal}
-                                    seatPosition={edgePosition}
-                                    bid={hand.length > 0 ? bid : null}
-                                    tricksWon={
-                                        hand.length > 0 ? tricksWon : undefined
-                                    }
-                                    teamColor={
-                                        index % 2 === 0 ? "#3b82f6" : "#ef4444"
-                                    }
-                                />
-                                <CardHand
-                                    cards={isLocal ? hand : []}
-                                    cardCount={hand.length}
-                                    isLocalPlayer={isLocal}
-                                    interactive={isLocal && isCurrentTurn}
-                                    selectedIndex={
-                                        isLocal ? selectedCardIndex : null
-                                    }
-                                    onCardClick={
-                                        isLocal ? handleCardClick : undefined
-                                    }
-                                    playerId={player.id}
+                            return (
+                                <EdgeRegion
+                                    key={player.id}
+                                    position={edgePosition}
+                                    isHero={isLocal}
                                     isDealing={isDealing}
-                                />
-                            </EdgeRegion>
-                        );
-                    })}
+                                >
+                                    <PlayerInfo
+                                        playerId={player.id}
+                                        playerName={player.name}
+                                        isCurrentTurn={isCurrentTurn}
+                                        isLocalPlayer={isLocal}
+                                        seatPosition={edgePosition}
+                                        bid={hand.length > 0 ? bid : null}
+                                        tricksWon={
+                                            hand.length > 0
+                                                ? tricksWon
+                                                : undefined
+                                        }
+                                        teamColor={
+                                            index % 2 === 0
+                                                ? "#3b82f6"
+                                                : "#ef4444"
+                                        }
+                                    />
+                                    <CardHand
+                                        cards={hand}
+                                        cardCount={hand.length}
+                                        isLocalPlayer={isLocal}
+                                        interactive={isLocal && isCurrentTurn}
+                                        selectedIndex={
+                                            isLocal ? selectedCardIndex : null
+                                        }
+                                        onCardClick={
+                                            isLocal
+                                                ? handleCardClick
+                                                : undefined
+                                        }
+                                        playerId={player.id}
+                                        isDealing={isDealing}
+                                    />
+                                </EdgeRegion>
+                            );
+                        })}
 
-                    {/* Center Area */}
-                    <TableCenter className="flex flex-col items-center gap-4">
-                        {/* Show deck when not dealt */}
-                        {hands.length === 0 && !isDealing && (
-                            <CardDeck
-                                cardCount={deckCount}
-                                isDealing={isDealing}
-                            />
-                        )}
-
-                        {/* Show dealing animation with flying cards */}
-                        {isDealing && (
-                            <div className="relative">
+                        {/* Center Area */}
+                        <TableCenter className="flex flex-col items-center gap-4">
+                            {/* Show deck when not dealt */}
+                            {hands.length === 0 && !isDealing && (
                                 <CardDeck
                                     cardCount={deckCount}
                                     isDealing={isDealing}
                                 />
-                                {/* Flying cards during deal */}
-                                <DealingCardsOverlay
-                                    dealingCards={dealingCards}
-                                />
-                            </div>
-                        )}
+                            )}
 
-                        {/* Trick pile when playing */}
-                        {hands.length > 0 && !isDealing && (
-                            <>
-                                {/* Round indicator */}
-                                <motion.div
-                                    className="bg-black/40 backdrop-blur-sm rounded-full px-4 py-1"
-                                    initial={{ opacity: 0, y: -10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                >
-                                    <span className="text-white/80 text-sm font-medium">
-                                        Round 1 • Trick {trickPlays.length + 1}
-                                    </span>
-                                </motion.div>
+                            {/* Show dealing animation with flying cards */}
+                            {isDealing && (
+                                <div className="relative">
+                                    <CardDeck
+                                        cardCount={deckCount}
+                                        isDealing={isDealing}
+                                    />
+                                    {/* Flying cards during deal */}
+                                    <DealingCardsOverlay
+                                        dealingCards={dealingCards}
+                                    />
+                                </div>
+                            )}
 
-                                <TrickPile
-                                    plays={trickPlays}
-                                    winningCard={
-                                        trickPlays.length > 0
-                                            ? trickPlays[trickPlays.length - 1]
-                                                  .card
-                                            : undefined
-                                    }
-                                />
-                            </>
-                        )}
-                    </TableCenter>
-
-                    {/* Turn indicator for local player */}
-                    <AnimatePresence>
-                        {activePlayerIndex === 0 &&
-                            hands.length > 0 &&
-                            !isDealing &&
-                            selectedCardIndex === null && (
-                                <motion.div
-                                    className="fixed bottom-32 left-1/2 -translate-x-1/2 z-50"
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: 20 }}
-                                >
-                                    <div className="bg-blue-500/90 backdrop-blur-sm rounded-full px-6 py-2 shadow-lg">
-                                        <span className="text-white font-medium">
-                                            Your turn! Select a card to play
+                            {/* Trick pile when playing */}
+                            {hands.length > 0 && !isDealing && (
+                                <>
+                                    {/* Round indicator */}
+                                    <motion.div
+                                        className="bg-black/40 backdrop-blur-sm rounded-full px-4 py-1"
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                    >
+                                        <span className="text-white/80 text-sm font-medium">
+                                            Round 1 • Trick{" "}
+                                            {trickPlays.length + 1}
                                         </span>
-                                    </div>
-                                </motion.div>
-                            )}
-                    </AnimatePresence>
+                                    </motion.div>
 
-                    {/* Play card confirmation */}
-                    <AnimatePresence>
-                        {selectedCardIndex !== null &&
-                            hands[0]?.[selectedCardIndex] && (
-                                <motion.div
-                                    className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex gap-3"
-                                    initial={{ opacity: 0, y: 20 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, y: 20 }}
-                                >
-                                    <Button
-                                        onClick={() => {
-                                            const card =
-                                                hands[0][selectedCardIndex];
-                                            if (card)
-                                                handleCardClick(
-                                                    selectedCardIndex,
-                                                    card
-                                                );
-                                        }}
-                                        className="bg-emerald-600 hover:bg-emerald-700 shadow-lg"
-                                    >
-                                        Play Card
-                                    </Button>
-                                    <Button
-                                        onClick={() =>
-                                            setSelectedCardIndex(null)
+                                    <TrickPile
+                                        plays={trickPlays}
+                                        winningCard={
+                                            trickPlays.length > 0
+                                                ? trickPlays[
+                                                      trickPlays.length - 1
+                                                  ].card
+                                                : undefined
                                         }
-                                        variant="outline"
-                                        className="shadow-lg"
-                                    >
-                                        Cancel
-                                    </Button>
-                                </motion.div>
+                                    />
+                                </>
                             )}
-                    </AnimatePresence>
-                </GameTable>
+                        </TableCenter>
+
+                        {/* Turn indicator for local player */}
+                        <AnimatePresence>
+                            {activePlayerIndex === 0 &&
+                                hands.length > 0 &&
+                                !isDealing &&
+                                selectedCardIndex === null && (
+                                    <motion.div
+                                        className="fixed bottom-32 left-1/2 -translate-x-1/2 z-50"
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: 20 }}
+                                    >
+                                        <div className="bg-blue-500/90 backdrop-blur-sm rounded-full px-6 py-2 shadow-lg">
+                                            <span className="text-white font-medium">
+                                                Your turn! Select a card to play
+                                            </span>
+                                        </div>
+                                    </motion.div>
+                                )}
+                        </AnimatePresence>
+
+                        {/* Play card confirmation */}
+                        <AnimatePresence>
+                            {selectedCardIndex !== null &&
+                                hands[0]?.[selectedCardIndex] && (
+                                    <motion.div
+                                        className="fixed bottom-8 left-1/2 -translate-x-1/2 z-[100] flex gap-3"
+                                        initial={{ opacity: 0, y: 20 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, y: 20 }}
+                                    >
+                                        <Button
+                                            onClick={() => {
+                                                const card =
+                                                    hands[0][selectedCardIndex];
+                                                if (card)
+                                                    handleCardClick(
+                                                        selectedCardIndex,
+                                                        card
+                                                    );
+                                            }}
+                                            className="bg-emerald-600 hover:bg-emerald-700 shadow-lg"
+                                        >
+                                            Play Card
+                                        </Button>
+                                        <Button
+                                            onClick={() =>
+                                                setSelectedCardIndex(null)
+                                            }
+                                            variant="secondary"
+                                            className="shadow-lg bg-slate-700 hover:bg-slate-600 text-white border-0"
+                                        >
+                                            Cancel
+                                        </Button>
+                                    </motion.div>
+                                )}
+                        </AnimatePresence>
+                    </GameTable>
+                </LayoutGroup>
             </div>
         </div>
     );

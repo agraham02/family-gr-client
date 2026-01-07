@@ -165,45 +165,47 @@ function CardInHand({
                 marginLeft: isHorizontal ? (index === 0 ? 0 : -spacing) : 0,
                 marginTop: isHorizontal ? 0 : index === 0 ? 0 : -spacing,
                 zIndex,
-                willChange: "transform, opacity",
             }}
             initial={{
                 opacity: 0,
-                transform: `translate3d(0px, ${
-                    isHorizontal ? -30 : 0
-                }px, 0px) scale(0.3)`,
+                scale: 0.3,
+                y: isHorizontal ? -30 : 0,
+                x: 0,
             }}
             animate={{
                 opacity: 1,
-                transform: `translate3d(${xOffset}px, ${yOffset}px, 0px) scale(1)`,
+                scale: 1,
+                y: yOffset,
+                x: xOffset,
             }}
             exit={{
                 opacity: 0,
-                transform: `translate3d(${isHorizontal ? 0 : -40}px, ${
-                    isHorizontal ? -40 : 0
-                }px, 0px) scale(0.6)`,
+                scale: 0.5,
+                y: isHorizontal ? -50 : 0,
+                x: isHorizontal ? 0 : -50,
             }}
             transition={{
-                duration: 0.12,
-                ease: "easeOut",
+                type: "spring",
+                stiffness: 400,
+                damping: 25,
             }}
             whileHover={
                 isInteractive && !isDisabled
                     ? {
-                          transform: `translate3d(${
-                              isHorizontal ? xOffset : xOffset - 12
-                          }px, ${
-                              isHorizontal ? yOffset - 12 : yOffset
-                          }px, 0px) scale(1.05)`,
-                          transition: { duration: 0.1 },
+                          y: isHorizontal ? yOffset - 15 : yOffset,
+                          x: isHorizontal ? xOffset : xOffset - 15,
+                          scale: 1.08,
+                          transition: {
+                              type: "spring",
+                              stiffness: 400,
+                              damping: 20,
+                          },
                       }
                     : undefined
             }
             whileTap={
                 isInteractive && !isDisabled
-                    ? {
-                          transform: `translate3d(${xOffset}px, ${yOffset}px, 0px) scale(0.98)`,
-                      }
+                    ? { scale: 0.95, transition: { duration: 0.1 } }
                     : undefined
             }
             onClick={isInteractive && !isDisabled ? onClick : undefined}
