@@ -8,15 +8,15 @@ import {
     PlayingCard as PlayingCardType,
 } from "@/types";
 import {
-    CardTableLayout,
-    TableSeat,
+    GameTable,
     TableCenter,
-    useCardTable,
-    CardFan,
-    PlayerSeat,
+    EdgeRegion,
+    CardHand,
+    PlayerInfo,
     TrickPile,
-    PlayCardButton,
+    EdgePosition,
 } from "@/components/games/shared";
+import { Button } from "@/components/ui/button";
 
 interface SpadesGameTableProps {
     gameData: SpadesData;
@@ -25,127 +25,22 @@ interface SpadesGameTableProps {
     onCardPlay: (card: PlayingCardType) => void;
 }
 
-// Ordering configuration for player info relative to cards
-// Cards should be at edge, player info toward center
-function getLayoutOrder(position: string): { cardsFirst: boolean } {
-    switch (position) {
-        case "bottom":
-            // Cards at bottom edge, info above
-            return { cardsFirst: false };
-        case "top":
-            // Cards at top edge, info below
-            return { cardsFirst: true };
-        case "left":
-        case "bottom-left":
-        case "top-left":
-            // Cards at left edge, info to the right
-            return { cardsFirst: true };
-        case "right":
-        case "bottom-right":
-        case "top-right":
-            // Cards at right edge, info to the left
-            return { cardsFirst: false };
-        default:
-            return { cardsFirst: false };
+// Helper function to map player index to edge position
+function getEdgePosition(index: number, playerCount: number): EdgePosition {
+    if (playerCount === 2) {
+        return index === 0 ? "bottom" : "top";
     }
-}
-
-// Individual player seat component
-function SpadesPlayerSeat({
-    playerId,
-    gameData,
-    playerData,
-    localIndex,
-    isMyTurn,
-    selectedCardIndex,
-    onCardSelect,
-}: {
-    playerId: string;
-    gameData: SpadesData;
-    playerData: SpadesPlayerData;
-    localIndex: number;
-    isMyTurn: boolean;
-    selectedCardIndex: number | null;
-    onCardSelect: (index: number, card: PlayingCardType) => void;
-}) {
-    const { getSeatConfig } = useCardTable();
-    const config = getSeatConfig(localIndex);
-
-    const isLocal = localIndex === 0;
-    const player = gameData.players[playerId];
-    const isCurrentTurn =
-        gameData.playOrder[gameData.currentTurnIndex] === playerId;
-    const bid = gameData.bids[playerId]?.amount ?? null;
-    const tricksWon = gameData.roundTrickCounts?.[playerId] ?? 0;
-    const cardCount = gameData.handsCounts?.[playerId] ?? 0;
-
-    // Get team color
-    let teamColor: string | undefined;
-    Object.entries(gameData.teams).forEach(([teamId, team]) => {
-        if (team.players.includes(playerId)) {
-            teamColor = teamId === "0" ? "#3b82f6" : "#ef4444";
-        }
-    });
-
-    // Determine card size based on position - responsive for mobile/desktop
-    // Local player: md on mobile, lg on desktop
-    // Opponents: xs on mobile, sm on desktop
-    const getResponsiveCardSize = () => {
-        if (typeof window !== "undefined") {
-            const isMobile = window.innerWidth < 768;
-            if (isLocal) {
-                return isMobile ? "md" : "lg";
-            }
-            return isMobile ? "xs" : "sm";
-        }
-        return isLocal ? "lg" : "sm";
-    };
-    const cardSize = getResponsiveCardSize();
-
-    // Get layout ordering - cards at edge, info toward center
-    const layout = getLayoutOrder(config.position);
-
-    const playerInfo = (
-        <PlayerSeat
-            playerId={playerId}
-            playerName={player?.name || "Unknown"}
-            isCurrentTurn={isCurrentTurn}
-            isLocalPlayer={isLocal}
-            position={config.position}
-            bid={bid}
-            tricksWon={tricksWon}
-            teamColor={teamColor}
-        />
-    );
-
-    const cardFan = (
-        <CardFan
-            cards={isLocal ? playerData.hand : []}
-            cardCount={cardCount}
-            position={config.fanPosition}
-            size={cardSize}
-            interactive={isLocal && isMyTurn && gameData.phase === "playing"}
-            selectedIndex={isLocal ? selectedCardIndex : null}
-            onCardClick={isLocal ? onCardSelect : undefined}
-            playerId={playerId}
-        />
-    );
-
-    return (
-        <TableSeat index={localIndex} className="gap-1 md:gap-2">
-            {layout.cardsFirst ? (
-                <>
-                    {cardFan}
-                    {playerInfo}
-                </>
-            ) : (
-                <>
-                    {playerInfo}
-                    {cardFan}
-                </>
-            )}
-        </TableSeat>
-    );
+    if (playerCount === 3) {
+        if (index === 0) return "bottom";
+        if (index === 1) return "left";
+        return "right";
+    }
+    // 4 players (standard for Spades)
+    if (index === 0) return "bottom";
+    if (index === 1) return "left";
+    if (index === 2) return "top";
+    if (index === 3) return "right";
+    return "top";
 }
 
 function SpadesGameTable({
@@ -157,6 +52,8 @@ function SpadesGameTable({
     const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(
         null
     );
+
+    const playerCount = playerData.localOrdering.length;
 
     // Handle card selection (two-step: select, then confirm)
     const handleCardSelect = useCallback(
@@ -200,37 +97,73 @@ function SpadesGameTable({
         })) ?? [];
 
     return (
-        <div className="relative h-full w-full overflow-hidden bg-gradient-to-br from-emerald-800 via-emerald-700 to-teal-800">
-            {/* Table felt texture overlay */}
-            <div
-                className="absolute inset-0 opacity-30 pointer-events-none"
-                style={{
-                    backgroundImage: `radial-gradient(circle at center, transparent 0%, rgba(0,0,0,0.3) 100%)`,
-                }}
-            />
-
-            {/* Main game table layout */}
-            <CardTableLayout
-                playerCount={playerData.localOrdering.length}
-                className="relative z-10"
+        <div className="h-full w-full">
+            <GameTable
+                playerCount={playerCount}
+                isDealing={false}
+                showDebugGrid={false}
             >
-                {/* Player seats */}
-                {playerData.localOrdering.map((playerId, index) => (
-                    <SpadesPlayerSeat
-                        key={playerId}
-                        playerId={playerId}
-                        gameData={gameData}
-                        playerData={playerData}
-                        localIndex={index}
-                        isMyTurn={isMyTurn}
-                        selectedCardIndex={
-                            index === 0 ? selectedCardIndex : null
-                        }
-                        onCardSelect={handleCardSelect}
-                    />
-                ))}
+                {/* Player Edge Regions */}
+                {playerData.localOrdering.map((playerId, index) => {
+                    const isLocal = index === 0;
+                    const player = gameData.players[playerId];
+                    const isCurrentTurn =
+                        gameData.playOrder[gameData.currentTurnIndex] ===
+                        playerId;
+                    const bid = gameData.bids[playerId]?.amount ?? null;
+                    const tricksWon =
+                        gameData.roundTrickCounts?.[playerId] ?? 0;
+                    const cardCount = gameData.handsCounts?.[playerId] ?? 0;
+                    const edgePosition = getEdgePosition(index, playerCount);
 
-                {/* Center area - trick pile and round info */}
+                    // Get team color
+                    let teamColor: string | undefined;
+                    Object.entries(gameData.teams).forEach(([teamId, team]) => {
+                        if (team.players.includes(playerId)) {
+                            teamColor = teamId === "0" ? "#3b82f6" : "#ef4444";
+                        }
+                    });
+
+                    return (
+                        <EdgeRegion
+                            key={playerId}
+                            position={edgePosition}
+                            isHero={isLocal}
+                            isDealing={false}
+                        >
+                            <PlayerInfo
+                                playerId={playerId}
+                                playerName={player?.name || "Unknown"}
+                                isCurrentTurn={isCurrentTurn}
+                                isLocalPlayer={isLocal}
+                                seatPosition={edgePosition}
+                                bid={bid}
+                                tricksWon={tricksWon}
+                                teamColor={teamColor}
+                            />
+                            <CardHand
+                                cards={isLocal ? playerData.hand : []}
+                                cardCount={cardCount}
+                                isLocalPlayer={isLocal}
+                                interactive={
+                                    isLocal &&
+                                    isMyTurn &&
+                                    gameData.phase === "playing"
+                                }
+                                selectedIndex={
+                                    isLocal ? selectedCardIndex : null
+                                }
+                                onCardClick={
+                                    isLocal ? handleCardSelect : undefined
+                                }
+                                playerId={playerId}
+                                isDealing={false}
+                            />
+                        </EdgeRegion>
+                    );
+                })}
+
+                {/* Center Area */}
                 <TableCenter className="flex flex-col items-center gap-4">
                     {/* Round indicator */}
                     <motion.div
@@ -280,18 +213,35 @@ function SpadesGameTable({
                             )}
                     </AnimatePresence>
                 </TableCenter>
-            </CardTableLayout>
+            </GameTable>
 
             {/* Play card button */}
-            <PlayCardButton
-                visible={
-                    selectedCardIndex !== null &&
+            <AnimatePresence>
+                {selectedCardIndex !== null &&
                     isMyTurn &&
-                    gameData.phase === "playing"
-                }
-                onPlay={handlePlayCard}
-                onCancel={handleCancelSelection}
-            />
+                    gameData.phase === "playing" && (
+                        <motion.div
+                            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex gap-3"
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 20 }}
+                        >
+                            <Button
+                                onClick={handlePlayCard}
+                                className="bg-emerald-600 hover:bg-emerald-700 shadow-lg"
+                            >
+                                Play Card
+                            </Button>
+                            <Button
+                                onClick={handleCancelSelection}
+                                variant="outline"
+                                className="shadow-lg"
+                            >
+                                Cancel
+                            </Button>
+                        </motion.div>
+                    )}
+            </AnimatePresence>
 
             {/* Turn indicator message */}
             <AnimatePresence>
@@ -299,7 +249,7 @@ function SpadesGameTable({
                     gameData.phase === "playing" &&
                     selectedCardIndex === null && (
                         <motion.div
-                            className="fixed bottom-28 left-1/2 -translate-x-1/2 z-40"
+                            className="fixed bottom-32 left-1/2 -translate-x-1/2 z-50"
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: 10 }}
