@@ -2,21 +2,14 @@
 export { default as PlayingCard } from "./PlayingCard";
 export type { CardSize } from "./PlayingCard";
 
-export { default as CardFan } from "./CardFan";
-export type { FanPosition } from "./CardFan";
-
-export { default as PlayerSeat } from "./PlayerSeat";
-export type { SeatPosition } from "./PlayerSeat";
-
-export {
-    default as CardTableLayout,
-    TableSeat,
-    TableCenter,
-    useCardTable,
-} from "./CardTableLayout";
-
-export { default as TrickPile } from "./TrickPile";
-
 export { default as GameScoreboard } from "./GameScoreboard";
 
-export { default as PlayCardButton } from "./PlayCardButton";
+// V2 Components - CSS Grid-based responsive layout
+export { default as GameTable, TableCenter, useGameTable } from "./GameTable";
+export { default as EdgeRegion, useEdgeRegion } from "./EdgeRegion";
+export type { EdgePosition, EdgeRegionContextValue } from "./EdgeRegion";
+export { default as CardHand } from "./CardHand";
+export type { FanOrientation } from "./CardHand";
+export { default as CardDeck } from "./CardDeck";
+export { default as PlayerInfo } from "./PlayerInfo";
+export { default as TrickPile } from "./TrickPile";
