@@ -11,3 +11,5 @@ export type {
 export { useRoomEvents } from "./useRoomEvents";
 
 export { useOptimisticGameAction } from "./useOptimisticGameAction";
+
+export { useServerKeepAlive } from "./useServerKeepAlive";
