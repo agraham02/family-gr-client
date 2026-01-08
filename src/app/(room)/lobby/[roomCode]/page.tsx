@@ -28,8 +28,10 @@ import {
     WifiOffIcon,
     UsersIcon,
     Loader2Icon,
+    AlertCircleIcon,
 } from "lucide-react";
 import { useRoomEvents } from "@/hooks/useRoomEvents";
+import { validatePlayerName, sanitizePlayerName } from "@/lib/validation";
 
 export default function LobbyPage() {
     const { connected } = useWebSocket();
@@ -46,6 +48,7 @@ export default function LobbyPage() {
     } = useSession();
     const [showModal, setShowModal] = useState(false);
     const [pendingName, setPendingName] = useState("");
+    const [nameError, setNameError] = useState<string | null>(null);
     const [isJoining, setIsJoining] = useState(false);
     const router = useRouter();
 
@@ -108,10 +111,18 @@ export default function LobbyPage() {
 
     function handleNameSubmit(e: React.FormEvent) {
         e.preventDefault();
-        if (pendingName.trim()) {
-            setUserName(pendingName.trim());
-            setShowModal(false);
+
+        // Validate name
+        const validationError = validatePlayerName(pendingName);
+        if (validationError) {
+            setNameError(validationError.message);
+            return;
         }
+
+        setNameError(null);
+        const sanitizedName = sanitizePlayerName(pendingName);
+        setUserName(sanitizedName);
+        setShowModal(false);
     }
 
     // Show skeleton while initializing, joining, or waiting for lobby data
@@ -154,15 +165,32 @@ export default function LobbyPage() {
                                 autoFocus
                                 placeholder="Your Name"
                                 value={pendingName}
-                                onChange={(e) => setPendingName(e.target.value)}
-                                className="h-11 text-center text-lg"
+                                onChange={(e) => {
+                                    setPendingName(e.target.value);
+                                    // Clear error when user starts typing
+                                    if (nameError) {
+                                        setNameError(null);
+                                    }
+                                }}
+                                className={`h-11 text-center text-lg ${
+                                    nameError
+                                        ? "border-red-500 dark:border-red-400 focus:ring-red-500/20 focus:border-red-500"
+                                        : ""
+                                }`}
+                                maxLength={50}
                             />
+                            {nameError && (
+                                <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 w-full">
+                                    <AlertCircleIcon className="w-4 h-4 flex-shrink-0" />
+                                    <span>{nameError}</span>
+                                </div>
+                            )}
                             <Button
                                 type="submit"
                                 className="w-full h-11 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white font-semibold"
-                                disabled={!pendingName.trim()}
+                                disabled={!pendingName.trim() || !!nameError}
                             >
-                                {pendingName.trim() ? (
+                                {pendingName.trim() && !nameError ? (
                                     "Join Lobby"
                                 ) : (
                                     <>

@@ -24,7 +24,16 @@ import {
     DicesIcon,
     ArrowRightIcon,
     Loader2Icon,
+    AlertCircleIcon,
 } from "lucide-react";
+import {
+    validatePlayerName,
+    validateRoomName,
+    validateRoomCode,
+    sanitizePlayerName,
+    sanitizeRoomName,
+    sanitizeRoomCode,
+} from "@/lib/validation";
 
 interface CreateRoomCardProps {
     name: string;
@@ -33,6 +42,8 @@ interface CreateRoomCardProps {
     setRoomName: (v: string) => void;
     onCreate: (name: string, roomName: string) => Promise<void>;
     loading: boolean;
+    nameError: string | null;
+    roomNameError: string | null;
 }
 
 function CreateRoomCard({
@@ -42,7 +53,10 @@ function CreateRoomCard({
     setRoomName,
     onCreate,
     loading,
+    nameError,
+    roomNameError,
 }: CreateRoomCardProps) {
+    const isFormValid = !nameError && name.trim().length > 0 && !roomNameError;
     return (
         <motion.div
             initial={{ opacity: 0, y: 30, scale: 0.95 }}
@@ -75,9 +89,20 @@ function CreateRoomCard({
                             placeholder="Enter your name"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            className="h-11 bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                            className={`h-11 bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 ${
+                                nameError
+                                    ? "border-red-500 dark:border-red-400 focus:ring-red-500/20 focus:border-red-500"
+                                    : ""
+                            }`}
                             aria-label="Your Name"
+                            maxLength={50}
                         />
+                        {nameError && (
+                            <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
+                                <AlertCircleIcon className="w-4 h-4 flex-shrink-0" />
+                                <span>{nameError}</span>
+                            </div>
+                        )}
                     </div>
                     <div className="space-y-2">
                         <Label
@@ -94,17 +119,33 @@ function CreateRoomCard({
                             placeholder="My Game Room"
                             value={roomName}
                             onChange={(e) => setRoomName(e.target.value)}
-                            className="h-11 bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                            className={`h-11 bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 ${
+                                roomNameError
+                                    ? "border-red-500 dark:border-red-400 focus:ring-red-500/20 focus:border-red-500"
+                                    : ""
+                            }`}
                             aria-label="Room Name"
+                            maxLength={100}
                         />
+                        {roomNameError && (
+                            <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
+                                <AlertCircleIcon className="w-4 h-4 flex-shrink-0" />
+                                <span>{roomNameError}</span>
+                            </div>
+                        )}
                     </div>
                 </CardContent>
                 <CardFooter className="pt-2">
                     <Button
                         className="w-full h-11 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all duration-300"
                         type="button"
-                        disabled={!name || loading}
-                        onClick={() => onCreate(name, roomName)}
+                        disabled={!isFormValid || loading}
+                        onClick={() =>
+                            onCreate(
+                                sanitizePlayerName(name),
+                                sanitizeRoomName(roomName)
+                            )
+                        }
                     >
                         {loading ? (
                             <>
@@ -131,6 +172,8 @@ interface JoinRoomCardProps {
     setRoomCode: (v: string) => void;
     onJoin: (name: string, roomCode: string) => Promise<void>;
     loading: boolean;
+    nameError: string | null;
+    roomCodeError: string | null;
 }
 
 function JoinRoomCard({
@@ -140,7 +183,14 @@ function JoinRoomCard({
     setRoomCode,
     onJoin,
     loading,
+    nameError,
+    roomCodeError,
 }: JoinRoomCardProps) {
+    const isFormValid =
+        !nameError &&
+        name.trim().length > 0 &&
+        !roomCodeError &&
+        roomCode.length === 6;
     return (
         <motion.div
             initial={{ opacity: 0, y: 30, scale: 0.95 }}
@@ -173,9 +223,20 @@ function JoinRoomCard({
                             placeholder="Enter your name"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            className="h-11 bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500"
+                            className={`h-11 bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 ${
+                                nameError
+                                    ? "border-red-500 dark:border-red-400 focus:ring-red-500/20 focus:border-red-500"
+                                    : ""
+                            }`}
                             aria-label="Your Name"
+                            maxLength={50}
                         />
+                        {nameError && (
+                            <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
+                                <AlertCircleIcon className="w-4 h-4 flex-shrink-0" />
+                                <span>{nameError}</span>
+                            </div>
+                        )}
                     </div>
                     <div className="space-y-2">
                         <Label
@@ -191,18 +252,33 @@ function JoinRoomCard({
                             onChange={(e) =>
                                 setRoomCode(e.target.value.toUpperCase())
                             }
-                            className="h-11 bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 uppercase tracking-widest font-mono"
+                            className={`h-11 bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 uppercase tracking-widest font-mono ${
+                                roomCodeError
+                                    ? "border-red-500 dark:border-red-400 focus:ring-red-500/20 focus:border-red-500"
+                                    : ""
+                            }`}
                             aria-label="Room Code"
                             maxLength={6}
                         />
+                        {roomCodeError && (
+                            <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400">
+                                <AlertCircleIcon className="w-4 h-4 flex-shrink-0" />
+                                <span>{roomCodeError}</span>
+                            </div>
+                        )}
                     </div>
                 </CardContent>
                 <CardFooter className="pt-2">
                     <Button
                         className="w-full h-11 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white font-semibold shadow-lg shadow-violet-500/25 hover:shadow-violet-500/40 transition-all duration-300"
                         type="button"
-                        disabled={!name || !roomCode || loading}
-                        onClick={() => onJoin(name, roomCode)}
+                        disabled={!isFormValid || loading}
+                        onClick={() =>
+                            onJoin(
+                                sanitizePlayerName(name),
+                                sanitizeRoomCode(roomCode)
+                            )
+                        }
                     >
                         {loading ? (
                             <>
@@ -228,6 +304,9 @@ export default function Home() {
     const [roomCode, setRoomCode] = useState("");
     const [loadingCreate, setLoadingCreate] = useState(false);
     const [loadingJoin, setLoadingJoin] = useState(false);
+    const [nameError, setNameError] = useState<string | null>(null);
+    const [roomNameError, setRoomNameError] = useState<string | null>(null);
+    const [roomCodeError, setRoomCodeError] = useState<string | null>(null);
     const router = useRouter();
     const { setSessionData } = useSession();
 
@@ -246,6 +325,17 @@ export default function Home() {
     };
 
     async function handleCreateRoom(name: string, roomName: string) {
+        // Validate inputs
+        const nameValidationError = validatePlayerName(name);
+        const roomNameValidationError = validateRoomName(roomName);
+
+        setNameError(nameValidationError?.message || null);
+        setRoomNameError(roomNameValidationError?.message || null);
+
+        if (nameValidationError || roomNameValidationError) {
+            return;
+        }
+
         setLoadingCreate(true);
         await toast.promise(createRoom(name, roomName), {
             loading: "Creating room...",
@@ -263,6 +353,17 @@ export default function Home() {
     }
 
     async function handleJoinRoom(name: string, roomCode: string) {
+        // Validate inputs
+        const nameValidationError = validatePlayerName(name);
+        const roomCodeValidationError = validateRoomCode(roomCode);
+
+        setNameError(nameValidationError?.message || null);
+        setRoomCodeError(roomCodeValidationError?.message || null);
+
+        if (nameValidationError || roomCodeValidationError) {
+            return;
+        }
+
         setLoadingJoin(true);
         // Pass existing userId from localStorage to maintain identity (important for kick enforcement)
         const existingUserId = localStorage.getItem("userId") || undefined;
@@ -384,6 +485,8 @@ export default function Home() {
                             setRoomName={setRoomName}
                             onCreate={handleCreateRoom}
                             loading={loadingCreate}
+                            nameError={nameError}
+                            roomNameError={roomNameError}
                         />
                     </div>
 
@@ -404,6 +507,8 @@ export default function Home() {
                             setRoomCode={setRoomCode}
                             onJoin={handleJoinRoom}
                             loading={loadingJoin}
+                            nameError={nameError}
+                            roomCodeError={roomCodeError}
                         />
                     </div>
                 </div>
