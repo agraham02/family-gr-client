@@ -37,9 +37,9 @@ import {
 
 interface CreateRoomCardProps {
     name: string;
-    setName: (v: string) => void;
+    onNameChange: (v: string) => void;
     roomName: string;
-    setRoomName: (v: string) => void;
+    onRoomNameChange: (v: string) => void;
     onCreate: (name: string, roomName: string) => Promise<void>;
     loading: boolean;
     nameError: string | null;
@@ -48,9 +48,9 @@ interface CreateRoomCardProps {
 
 function CreateRoomCard({
     name,
-    setName,
+    onNameChange,
     roomName,
-    setRoomName,
+    onRoomNameChange,
     onCreate,
     loading,
     nameError,
@@ -88,7 +88,7 @@ function CreateRoomCard({
                             id="create-name"
                             placeholder="Enter your name"
                             value={name}
-                            onChange={(e) => setName(e.target.value)}
+                            onChange={(e) => onNameChange(e.target.value)}
                             className={`h-11 bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 ${
                                 nameError
                                     ? "border-red-500 dark:border-red-400 focus:ring-red-500/20 focus:border-red-500"
@@ -118,7 +118,7 @@ function CreateRoomCard({
                             id="room-name"
                             placeholder="My Game Room"
                             value={roomName}
-                            onChange={(e) => setRoomName(e.target.value)}
+                            onChange={(e) => onRoomNameChange(e.target.value)}
                             className={`h-11 bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 ${
                                 roomNameError
                                     ? "border-red-500 dark:border-red-400 focus:ring-red-500/20 focus:border-red-500"
@@ -167,9 +167,9 @@ function CreateRoomCard({
 
 interface JoinRoomCardProps {
     name: string;
-    setName: (v: string) => void;
+    onNameChange: (v: string) => void;
     roomCode: string;
-    setRoomCode: (v: string) => void;
+    onRoomCodeChange: (v: string) => void;
     onJoin: (name: string, roomCode: string) => Promise<void>;
     loading: boolean;
     nameError: string | null;
@@ -178,9 +178,9 @@ interface JoinRoomCardProps {
 
 function JoinRoomCard({
     name,
-    setName,
+    onNameChange,
     roomCode,
-    setRoomCode,
+    onRoomCodeChange,
     onJoin,
     loading,
     nameError,
@@ -222,7 +222,7 @@ function JoinRoomCard({
                             id="join-name"
                             placeholder="Enter your name"
                             value={name}
-                            onChange={(e) => setName(e.target.value)}
+                            onChange={(e) => onNameChange(e.target.value)}
                             className={`h-11 bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 ${
                                 nameError
                                     ? "border-red-500 dark:border-red-400 focus:ring-red-500/20 focus:border-red-500"
@@ -249,9 +249,7 @@ function JoinRoomCard({
                             id="room-code"
                             placeholder="ABC123"
                             value={roomCode}
-                            onChange={(e) =>
-                                setRoomCode(e.target.value.toUpperCase())
-                            }
+                            onChange={(e) => onRoomCodeChange(e.target.value)}
                             className={`h-11 bg-zinc-50 dark:bg-zinc-800/50 border-zinc-200 dark:border-zinc-700 focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 uppercase tracking-widest font-mono ${
                                 roomCodeError
                                     ? "border-red-500 dark:border-red-400 focus:ring-red-500/20 focus:border-red-500"
@@ -309,6 +307,38 @@ export default function Home() {
     const [roomCodeError, setRoomCodeError] = useState<string | null>(null);
     const router = useRouter();
     const { setSessionData } = useSession();
+
+    // Real-time validation handlers
+    function handleNameChange(value: string) {
+        setName(value);
+        if (value.trim()) {
+            const error = validatePlayerName(value);
+            setNameError(error?.message || null);
+        } else {
+            setNameError(null);
+        }
+    }
+
+    function handleRoomNameChange(value: string) {
+        setRoomName(value);
+        if (value.trim()) {
+            const error = validateRoomName(value);
+            setRoomNameError(error?.message || null);
+        } else {
+            setRoomNameError(null);
+        }
+    }
+
+    function handleRoomCodeChange(value: string) {
+        const uppercased = value.toUpperCase();
+        setRoomCode(uppercased);
+        if (uppercased.trim()) {
+            const error = validateRoomCode(uppercased);
+            setRoomCodeError(error?.message || null);
+        } else {
+            setRoomCodeError(null);
+        }
+    }
 
     const handleSuccess = (
         res: { userId: string; roomId: string; roomCode: string },
@@ -480,9 +510,9 @@ export default function Home() {
                     <div className="flex-1 min-w-0">
                         <CreateRoomCard
                             name={name}
-                            setName={setName}
+                            onNameChange={handleNameChange}
                             roomName={roomName}
-                            setRoomName={setRoomName}
+                            onRoomNameChange={handleRoomNameChange}
                             onCreate={handleCreateRoom}
                             loading={loadingCreate}
                             nameError={nameError}
@@ -502,9 +532,9 @@ export default function Home() {
                     <div className="flex-1 min-w-0">
                         <JoinRoomCard
                             name={name}
-                            setName={setName}
+                            onNameChange={handleNameChange}
                             roomCode={roomCode}
-                            setRoomCode={setRoomCode}
+                            onRoomCodeChange={handleRoomCodeChange}
                             onJoin={handleJoinRoom}
                             loading={loadingJoin}
                             nameError={nameError}
