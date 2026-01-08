@@ -11,6 +11,8 @@ import { toast } from "sonner";
 import { useRouter, useParams } from "next/navigation";
 import { useRoomEvents } from "@/hooks/useRoomEvents";
 import { getSocket, emitJoinRoom } from "@/lib/socket";
+import { useOptimisticGameAction } from "@/hooks/useOptimisticGameAction";
+import { optimisticGameReducer } from "@/lib/gameReducers";
 
 export default function GamePage() {
     const { roomId, userId } = useSession();
@@ -23,6 +25,23 @@ export default function GamePage() {
     const [disconnectedPlayers, setDisconnectedPlayers] = useState<User[]>([]);
     const [leaderId, setLeaderId] = useState<string | null>(null);
     const router = useRouter();
+
+    // Optimistic action handling
+    const optimisticAction = useOptimisticGameAction({
+        socket,
+        connected,
+        roomId: roomId ?? "",
+        userId: userId ?? "",
+        gameData,
+        playerData,
+        setGameData,
+        setPlayerData,
+        optimisticReducer: optimisticGameReducer,
+        onRollback: (reason) => {
+            toast.error(`Action reverted: ${reason}`);
+        },
+        actionTimeout: 5000,
+    });
 
     // Use shared room events hook for common events
     useRoomEvents({
@@ -60,6 +79,10 @@ export default function GamePage() {
                     setDisconnectedPlayers(disconnected);
                     // Request player-specific state
                     emit("get_player_state", { roomId, userId });
+                    // Confirm pending optimistic action if any
+                    if (optimisticAction.hasPendingAction) {
+                        optimisticAction.confirm();
+                    }
                     break;
                 case "player_sync":
                     setPlayerData(payload.playerState);
@@ -103,7 +126,7 @@ export default function GamePage() {
                     break;
             }
         },
-        [emit, roomId, userId]
+        [emit, roomId, userId, optimisticAction]
     );
 
     // Set up game event listeners
@@ -113,6 +136,14 @@ export default function GamePage() {
         const sock = getSocket();
 
         sock.on("game_event", handleGameEvent);
+
+        // Listen for action acknowledgements
+        sock.on("action_ack", ({ actionId, success, error }) => {
+            if (!success && error) {
+                console.error(`Action ${actionId} failed:`, error);
+                optimisticAction.rollback(error);
+            }
+        });
 
         // Request game state when connected
         const requestGameState = () => {
@@ -128,9 +159,10 @@ export default function GamePage() {
 
         return () => {
             sock.off("game_event", handleGameEvent);
+            sock.off("action_ack");
             sock.off("connect", requestGameState);
         };
-    }, [roomId, userId, handleGameEvent]);
+    }, [roomId, userId, handleGameEvent, optimisticAction]);
 
     function handleKickPlayer(targetUserId: string) {
         emit("kick_user", { roomId, userId, targetUserId });
@@ -148,6 +180,14 @@ export default function GamePage() {
 
     return (
         <main className="h-screen w-full overflow-hidden bg-zinc-50 dark:bg-zinc-950">
+            {/* Pending Action Indicator */}
+            {optimisticAction.hasPendingAction && (
+                <div className="fixed top-16 right-4 z-50 bg-blue-500 text-white px-3 py-1.5 rounded-full shadow-lg flex items-center gap-2 text-xs font-medium">
+                    <div className="w-2 h-2 bg-white rounded-full animate-pulse" />
+                    Processing...
+                </div>
+            )}
+
             {/* Game Paused Overlay */}
             <GamePausedOverlay
                 isPaused={isPaused}
@@ -166,6 +206,7 @@ export default function GamePage() {
                         <GameComponent
                             gameData={gameData}
                             playerData={playerData}
+                            dispatchOptimisticAction={optimisticAction.dispatch}
                         />
                     );
                 }

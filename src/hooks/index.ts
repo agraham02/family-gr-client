@@ -9,3 +9,5 @@ export type {
 } from "./usePlayerPositions";
 
 export { useRoomEvents } from "./useRoomEvents";
+
+export { useOptimisticGameAction } from "./useOptimisticGameAction";

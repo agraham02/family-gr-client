@@ -11,24 +11,32 @@ import RoundSummaryModal from "./ui/RoundSummaryModal";
 export default function Spades({
     gameData,
     playerData,
+    dispatchOptimisticAction,
 }: {
     gameData: SpadesData;
     playerData: SpadesPlayerData;
+    dispatchOptimisticAction?: (type: string, payload: unknown) => void;
 }) {
     const { socket, connected } = useWebSocket();
     const { roomId, userId } = useSession();
 
     const sendGameAction = React.useCallback(
         (type: string, payload: unknown) => {
-            if (!socket || !connected) return;
-            const action = {
-                type,
-                payload,
-                userId,
-            };
-            socket.emit("game_action", { roomId, action });
+            // Use optimistic action dispatcher if available, otherwise fallback to direct emit
+            if (dispatchOptimisticAction) {
+                dispatchOptimisticAction(type, payload);
+            } else {
+                // Fallback for backwards compatibility
+                if (!socket || !connected) return;
+                const action = {
+                    type,
+                    payload,
+                    userId,
+                };
+                socket.emit("game_action", { roomId, action });
+            }
         },
-        [socket, connected, userId, roomId]
+        [dispatchOptimisticAction, socket, connected, userId, roomId]
     );
 
     // Assume gameData has phase, players, currentIndex, and bids fields
@@ -43,7 +51,7 @@ export default function Spades({
 
     function handleSubmitBid() {
         if (!isMyTurn) return;
-        sendGameAction("PLACE_BID", { bid: { amount: bid } });
+        sendGameAction("PLACE_BID", { amount: bid });
         setBid(0); // Reset bid after submitting
     }
 

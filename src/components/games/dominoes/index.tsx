@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 interface DominoesProps {
     gameData: DominoesData;
     playerData: DominoesPlayerData;
+    dispatchOptimisticAction?: (type: string, payload: unknown) => void;
 }
 
 /**
@@ -50,7 +51,11 @@ function hasLegalMove(
     );
 }
 
-export default function Dominoes({ gameData, playerData }: DominoesProps) {
+export default function Dominoes({
+    gameData,
+    playerData,
+    dispatchOptimisticAction,
+}: DominoesProps) {
     const { socket, connected } = useWebSocket();
     const { roomId, userId } = useSession();
 
@@ -61,15 +66,21 @@ export default function Dominoes({ gameData, playerData }: DominoesProps) {
 
     const sendGameAction = useCallback(
         (type: string, payload: unknown) => {
-            if (!socket || !connected) return;
-            const action = {
-                type,
-                payload,
-                userId,
-            };
-            socket.emit("game_action", { roomId, action });
+            // Use optimistic action dispatcher if available, otherwise fallback to direct emit
+            if (dispatchOptimisticAction) {
+                dispatchOptimisticAction(type, payload);
+            } else {
+                // Fallback for backwards compatibility
+                if (!socket || !connected) return;
+                const action = {
+                    type,
+                    payload,
+                    userId,
+                };
+                socket.emit("game_action", { roomId, action });
+            }
         },
-        [socket, connected, userId, roomId]
+        [dispatchOptimisticAction, socket, connected, userId, roomId]
     );
 
     // Derived state
