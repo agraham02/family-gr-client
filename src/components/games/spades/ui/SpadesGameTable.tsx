@@ -17,7 +17,6 @@ import {
     PlayerInfo,
     TrickPile,
     EdgePosition,
-    useGameTable,
     ActionConfirmationBar,
     DealingOverlay,
     DealingItem,

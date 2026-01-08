@@ -65,7 +65,7 @@ function DesktopScoreboard({
     teams,
     playerBids,
     round,
-    phase,
+    phase: _phase,
     winTarget,
     className,
 }: GameScoreboardProps) {
@@ -225,7 +225,7 @@ function MobileScoreboard({
     teams,
     playerBids,
     round,
-    phase,
+    phase: _phase,
     winTarget,
 }: GameScoreboardProps) {
     return (

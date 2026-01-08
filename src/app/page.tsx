@@ -264,7 +264,9 @@ export default function Home() {
 
     async function handleJoinRoom(name: string, roomCode: string) {
         setLoadingJoin(true);
-        await toast.promise(joinRoom(name, roomCode), {
+        // Pass existing userId from localStorage to maintain identity (important for kick enforcement)
+        const existingUserId = localStorage.getItem("userId") || undefined;
+        await toast.promise(joinRoom(name, roomCode, existingUserId), {
             loading: "Joining room...",
             success: (res) => {
                 handleSuccess(res, name);

@@ -27,9 +27,16 @@ export interface GameComponentProps<
     TPlayerData extends PlayerData = PlayerData
 > {
     gameData: TGameData;
-    playerData: TPlayerData;
+    playerData: TPlayerData | null;
     /** Optional flag for debug mode - skips context dependencies */
     debugMode?: boolean;
+    /** Function to dispatch optimistic game actions - undefined for spectators */
+    dispatchOptimisticAction?: (
+        actionType: string,
+        actionPayload: unknown
+    ) => void;
+    /** Whether the viewer is a spectator (read-only mode) */
+    isSpectator?: boolean;
 }
 
 /**
@@ -44,12 +51,16 @@ type MockDataGenerator<TOptions = Record<string, unknown>> = (
 
 /**
  * Registry entry for a game component
+ * Uses ComponentType with explicit any for type erasure - this is intentional
+ * since the registry stores heterogeneous game components that get rendered
+ * dynamically based on game type. Type safety is maintained at the render site.
  */
 interface GameRegistryEntry {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     component: ComponentType<GameComponentProps<any, any>>;
     displayName: string;
     /** Generate mock data for debugging */
-    generateMockData?: MockDataGenerator<any>;
+    generateMockData?: MockDataGenerator<Record<string, unknown>>;
     /** Default options for mock data generation */
     defaultMockOptions?: Record<string, unknown>;
 }
@@ -95,6 +106,7 @@ export const GAME_REGISTRY: Record<string, GameRegistryEntry> = {
  */
 export function getGameComponent(
     gameType: string
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
 ): ComponentType<GameComponentProps<any, any>> | null {
     return GAME_REGISTRY[gameType]?.component ?? null;
 }

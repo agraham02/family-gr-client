@@ -10,6 +10,7 @@ import { User } from "@/types";
 import { useSession } from "@/contexts/SessionContext";
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { toast } from "sonner";
+import { getAvatarColor, getInitials } from "@/lib/playerUtils";
 import {
     CrownIcon,
     CheckCircle2Icon,
@@ -18,32 +19,6 @@ import {
     ShieldPlusIcon,
     UsersIcon,
 } from "lucide-react";
-
-// Generate consistent color from string
-function getAvatarColor(name: string): string {
-    const colors = [
-        "bg-gradient-to-br from-rose-400 to-pink-600",
-        "bg-gradient-to-br from-violet-400 to-purple-600",
-        "bg-gradient-to-br from-blue-400 to-indigo-600",
-        "bg-gradient-to-br from-cyan-400 to-teal-600",
-        "bg-gradient-to-br from-emerald-400 to-green-600",
-        "bg-gradient-to-br from-amber-400 to-orange-600",
-        "bg-gradient-to-br from-red-400 to-rose-600",
-    ];
-    const hash = name
-        .split("")
-        .reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return colors[hash % colors.length];
-}
-
-function getInitials(name: string): string {
-    return name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2);
-}
 
 export default function PlayerListCard({
     users,

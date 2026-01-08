@@ -19,6 +19,7 @@ import { useSession } from "@/contexts/SessionContext";
 import { toast } from "sonner";
 import { LobbyData } from "@/types";
 import LobbyDashboard from "@/components/lobby/LobbyDashboard";
+import GameInProgressBanner from "@/components/lobby/GameInProgressBanner";
 import { LobbySkeleton } from "@/components/skeletons";
 import {
     ClipboardIcon,
@@ -258,6 +259,9 @@ export default function LobbyPage() {
                         </div>
                     </div>
                 </motion.header>
+
+                {/* Game in Progress Banner */}
+                <GameInProgressBanner lobbyData={lobbyData} />
 
                 <LobbyDashboard lobbyData={lobbyData} />
             </div>

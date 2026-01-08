@@ -41,7 +41,6 @@ import {
     LogOut,
     Users,
     Settings,
-    X,
 } from "lucide-react";
 import {
     requestFullscreen,

@@ -21,6 +21,8 @@ interface UseRoomEventsOptions {
     autoNavigateOnGameStart?: boolean;
     /** Room code for navigation */
     roomCode: string;
+    /** Whether this user is currently a spectator (affects navigation) */
+    isSpectator?: boolean;
 }
 
 /**
@@ -34,6 +36,7 @@ export function useRoomEvents(options: UseRoomEventsOptions) {
         onGameAborted,
         autoNavigateOnGameStart = true,
         roomCode,
+        isSpectator = false,
     } = options;
 
     const router = useRouter();
@@ -64,7 +67,12 @@ export function useRoomEvents(options: UseRoomEventsOptions) {
             switch (payload.event) {
                 case "sync":
                     // If room is in-game and we're on lobby, redirect to game
-                    if (payload.roomState.state === "in-game") {
+                    // But only if we're an active player, not a spectator
+                    if (
+                        payload.roomState.state === "in-game" &&
+                        !isSpectator &&
+                        !payload.roomState.spectators?.includes(userId || "")
+                    ) {
                         toast.info("Rejoining active game...");
                         router.push(`/game/${roomCode}`);
                     }
@@ -160,9 +168,34 @@ export function useRoomEvents(options: UseRoomEventsOptions) {
                 case "game_resumed":
                     toast.success("Game resumed!");
                     break;
+
+                case "player_moved_to_spectators":
+                    if (payload.userId === userId) {
+                        toast.info("You are now spectating the game.");
+                    } else {
+                        toast.info(`${payload.userName} is now spectating.`);
+                    }
+                    break;
+
+                case "player_slot_claimed":
+                    if (payload.claimingUserId === userId) {
+                        toast.success("You have joined the game!");
+                    } else {
+                        toast.info(
+                            `${payload.claimingUserName} has joined the game.`
+                        );
+                    }
+                    break;
             }
         },
-        [userId, roomCode, router, clearRoomSession, autoNavigateOnGameStart]
+        [
+            userId,
+            roomCode,
+            router,
+            clearRoomSession,
+            autoNavigateOnGameStart,
+            isSpectator,
+        ]
     );
 
     const handleError = useCallback(
@@ -196,6 +229,15 @@ export function useRoomEvents(options: UseRoomEventsOptions) {
         socket.on("room_event", handleRoomEvent);
         socket.on("error", handleError);
 
+        // Handle duplicate join acknowledgment (server-side deduplication)
+        function handleAlreadyJoined() {
+            console.log(
+                "🔗 Already joined - duplicate connection detected by server"
+            );
+            hasJoinedRef.current = true;
+        }
+        socket.on("already_joined", handleAlreadyJoined);
+
         // Emit join_room only once per mount
         // This prevents duplicate syncs from React Strict Mode or re-renders
         if (!hasJoinedRef.current) {
@@ -220,6 +262,7 @@ export function useRoomEvents(options: UseRoomEventsOptions) {
         return () => {
             socket.off("room_event", handleRoomEvent);
             socket.off("error", handleError);
+            socket.off("already_joined", handleAlreadyJoined);
         };
     }, [roomId, userId, handleRoomEvent, handleError]);
 

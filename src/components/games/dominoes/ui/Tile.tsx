@@ -59,7 +59,6 @@ const SIZE_CONFIG = {
 
 function PipHalf({
     value,
-    halfWidth,
     halfHeight,
     pipSize,
     offsetY,

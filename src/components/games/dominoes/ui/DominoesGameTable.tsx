@@ -3,8 +3,6 @@
 import React, { useState, useCallback, useMemo } from "react";
 import { LayoutGroup } from "motion/react";
 import { toast } from "sonner";
-import { useWebSocket } from "@/contexts/WebSocketContext";
-import { useSession } from "@/contexts/SessionContext";
 import { DominoesData, DominoesPlayerData, Tile as TileType } from "@/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,7 +16,6 @@ import {
     ActionConfirmationBar,
     EdgePosition,
 } from "@/components/games/shared";
-import { cn } from "@/lib/utils";
 
 interface DominoesGameTableProps {
     gameData: DominoesData;
@@ -102,7 +99,7 @@ function DominoesGameTable({
     const playerCount =
         playerData.localOrdering?.length || gameData.playOrder.length;
     const localOrdering = playerData.localOrdering || gameData.playOrder;
-    const hand = playerData.hand || [];
+    const hand = useMemo(() => playerData.hand || [], [playerData.hand]);
     const currentPlayerId = gameData.playOrder[gameData.currentTurnIndex];
     const isPlaying = gameData.phase === "playing";
 
@@ -212,22 +209,25 @@ function DominoesGameTable({
         const tilesCount = gameData.handsCounts[playerId] ?? 0;
         const winTarget = gameData.settings.winTarget;
 
-        return () => (
-            <div className="flex gap-1 items-center flex-wrap">
-                <Badge
-                    variant="outline"
-                    className="text-[10px] px-1.5 py-0 bg-black/30 border-white/20 text-white/80"
-                >
-                    Score: {score}/{winTarget}
-                </Badge>
-                <Badge
-                    variant="outline"
-                    className="text-[10px] px-1.5 py-0 bg-black/30 border-white/20 text-white/80"
-                >
-                    Tiles: {tilesCount}
-                </Badge>
-            </div>
-        );
+        function DominoesStatsDisplay() {
+            return (
+                <div className="flex gap-1 items-center flex-wrap">
+                    <Badge
+                        variant="outline"
+                        className="text-[10px] px-1.5 py-0 bg-black/30 border-white/20 text-white/80"
+                    >
+                        Score: {score}/{winTarget}
+                    </Badge>
+                    <Badge
+                        variant="outline"
+                        className="text-[10px] px-1.5 py-0 bg-black/30 border-white/20 text-white/80"
+                    >
+                        Tiles: {tilesCount}
+                    </Badge>
+                </div>
+            );
+        }
+        return DominoesStatsDisplay;
     };
 
     return (

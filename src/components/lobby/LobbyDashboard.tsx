@@ -1,13 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { getAvailableGames } from "@/services/lobby";
 import { useSession } from "@/contexts/SessionContext";
+import { useWebSocket } from "@/contexts/WebSocketContext";
 import { toast } from "sonner";
-import { GameTypeMetadata, LobbyData } from "@/types";
+import { GameTypeMetadata, LobbyData, GameSettings } from "@/types";
 import { motion } from "framer-motion";
 import PlayerListCard from "@/components/lobby/PlayerListCard";
 import AvailableGamesCard from "@/components/lobby/AvailableGamesCard";
 import TeamAssignmentCard from "@/components/lobby/TeamAssignmentCard";
 import RoomControlsCard from "@/components/lobby/RoomControlsCard";
+import GameSettingsCard from "@/components/lobby/GameSettingsCard";
 
 export default function LobbyDashboard({
     lobbyData,
@@ -20,19 +22,23 @@ export default function LobbyDashboard({
     const [selectedGame, setSelectedGame] = useState<string | null>(
         lobbyData.selectedGameType
     );
+    const [gameSettings, setGameSettings] = useState<GameSettings>(
+        lobbyData.gameSettings ?? {}
+    );
     const selectedGameMetadata = availableGames.find(
         (g) => g.type === selectedGame
     );
 
-    // Get session context
-    const { userId } = useSession();
+    // Get session and socket context
+    const { userId, roomId } = useSession();
+    const { socket, connected } = useWebSocket();
     const users = lobbyData.users;
     const teams = lobbyData.teams ?? [];
     const leaderId = lobbyData.leaderId;
     const isPartyLeader = userId === leaderId;
 
     useEffect(() => {
-        const fetchAvailableGames = async () => {
+        async function fetchAvailableGames() {
             try {
                 const { games } = await getAvailableGames();
                 setAvailableGames(games);
@@ -45,13 +51,31 @@ export default function LobbyDashboard({
                     toast.error("Failed to load available games");
                 }
             }
-        };
+        }
         fetchAvailableGames();
     }, []);
 
     useEffect(() => {
         setSelectedGame(lobbyData.selectedGameType);
     }, [lobbyData.selectedGameType]);
+
+    useEffect(() => {
+        setGameSettings(lobbyData.gameSettings ?? {});
+    }, [lobbyData.gameSettings]);
+
+    // Handle game settings changes
+    const handleGameSettingsChange = useCallback(
+        (newSettings: GameSettings) => {
+            if (!socket || !connected || !isPartyLeader) return;
+            setGameSettings(newSettings);
+            socket.emit("update_game_settings", {
+                roomId,
+                userId,
+                gameSettings: newSettings,
+            });
+        },
+        [socket, connected, roomId, userId, isPartyLeader]
+    );
 
     const containerVariants = {
         hidden: { opacity: 0 },
@@ -85,13 +109,24 @@ export default function LobbyDashboard({
                 />
             </motion.div>
 
-            {/* Middle Column - Games */}
-            <motion.div variants={itemVariants} className="lg:col-span-4">
+            {/* Middle Column - Games & Game Settings */}
+            <motion.div
+                variants={itemVariants}
+                className="lg:col-span-4 flex flex-col gap-4 md:gap-6"
+            >
                 <AvailableGamesCard
                     availableGames={availableGames}
                     selectedGame={selectedGame}
                     isPartyLeader={isPartyLeader}
                 />
+                {selectedGame && (
+                    <GameSettingsCard
+                        gameType={selectedGame}
+                        settings={gameSettings}
+                        onSettingsChange={handleGameSettingsChange}
+                        isLeader={isPartyLeader}
+                    />
+                )}
             </motion.div>
 
             {/* Right Column - Teams & Controls */}
@@ -112,6 +147,8 @@ export default function LobbyDashboard({
                     <RoomControlsCard
                         selectedGame={selectedGame}
                         isPartyLeader={isPartyLeader}
+                        roomSettings={lobbyData.settings}
+                        gameSettings={gameSettings}
                     />
                 )}
             </motion.div>

@@ -138,7 +138,7 @@ const SUIT_COLORS = {
 function CardInHand({
     card,
     index,
-    totalCards,
+    totalCards: _totalCards,
     isHidden,
     isSelected,
     isDisabled,

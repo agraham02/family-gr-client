@@ -4,7 +4,7 @@ import React from "react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { PlayingCard as PlayingCardType } from "@/types";
-import { useGameTable, LayoutMode } from "./GameTable";
+import { useGameTable } from "./GameTable";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -81,13 +81,8 @@ const SUIT_COLORS = {
 // TrickPile Component
 // ─────────────────────────────────────────────────────────────────────────────
 
-function TrickPile({
-    plays,
-    winningPlayerId,
-    winningCard,
-    className,
-}: TrickPileProps) {
-    const { dimensions, layoutConfig } = useGameTable();
+function TrickPile({ plays, winningCard, className }: TrickPileProps) {
+    const { layoutConfig } = useGameTable();
 
     // Scale down card positions and sizes for compact layout
     const isCompact = layoutConfig.layoutMode === "compact";

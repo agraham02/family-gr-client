@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
-import { motion, AnimatePresence } from "motion/react";
 import { Button } from "@/components/ui/button";
 import {
     Dialog,
@@ -53,40 +52,58 @@ export function clearFullscreenPreference(): void {
 // Fullscreen API helpers
 // ─────────────────────────────────────────────────────────────────────────────
 
+// Vendor-prefixed fullscreen types for cross-browser compatibility
+interface VendorDocument extends Document {
+    webkitFullscreenElement?: Element | null;
+    mozFullScreenElement?: Element | null;
+    msFullscreenElement?: Element | null;
+    webkitExitFullscreen?: () => Promise<void>;
+    mozCancelFullScreen?: () => Promise<void>;
+    msExitFullscreen?: () => Promise<void>;
+}
+
+interface VendorHTMLElement extends HTMLElement {
+    webkitRequestFullscreen?: () => Promise<void>;
+    mozRequestFullScreen?: () => Promise<void>;
+    msRequestFullscreen?: () => Promise<void>;
+}
+
 export function isFullscreenSupported(): boolean {
     if (typeof document === "undefined") return false;
+    const elem = document.documentElement as VendorHTMLElement;
     return !!(
-        document.documentElement.requestFullscreen ||
-        (document.documentElement as any).webkitRequestFullscreen ||
-        (document.documentElement as any).mozRequestFullScreen ||
-        (document.documentElement as any).msRequestFullscreen
+        elem.requestFullscreen ||
+        elem.webkitRequestFullscreen ||
+        elem.mozRequestFullScreen ||
+        elem.msRequestFullscreen
     );
 }
 
 export function isCurrentlyFullscreen(): boolean {
     if (typeof document === "undefined") return false;
+    const doc = document as VendorDocument;
     return !!(
-        document.fullscreenElement ||
-        (document as any).webkitFullscreenElement ||
-        (document as any).mozFullScreenElement ||
-        (document as any).msFullscreenElement
+        doc.fullscreenElement ||
+        doc.webkitFullscreenElement ||
+        doc.mozFullScreenElement ||
+        doc.msFullscreenElement
     );
 }
 
 export async function requestFullscreen(): Promise<boolean> {
     if (typeof document === "undefined") return false;
 
-    const elem = document.documentElement;
+    const elem = document.documentElement as VendorHTMLElement;
 
     try {
         if (elem.requestFullscreen) {
             await elem.requestFullscreen();
-        } else if ((elem as any).webkitRequestFullscreen) {
-            await (elem as any).webkitRequestFullscreen();
-        } else if ((elem as any).mozRequestFullScreen) {
-            await (elem as any).mozRequestFullScreen();
-        } else if ((elem as any).msRequestFullscreen) {
-            await (elem as any).msRequestFullscreen();
+        } else if (elem.webkitRequestFullscreen) {
+            await elem.webkitRequestFullscreen();
+        } else if (elem.mozRequestFullScreen) {
+            await elem.mozRequestFullScreen();
+        } else if (elem.msRequestFullscreen) {
+            await elem.msRequestFullscreen();
         } else {
             return false;
         }
@@ -100,15 +117,17 @@ export async function requestFullscreen(): Promise<boolean> {
 export async function exitFullscreen(): Promise<boolean> {
     if (typeof document === "undefined") return false;
 
+    const doc = document as VendorDocument;
+
     try {
-        if (document.exitFullscreen) {
-            await document.exitFullscreen();
-        } else if ((document as any).webkitExitFullscreen) {
-            await (document as any).webkitExitFullscreen();
-        } else if ((document as any).mozCancelFullScreen) {
-            await (document as any).mozCancelFullScreen();
-        } else if ((document as any).msExitFullscreen) {
-            await (document as any).msExitFullscreen();
+        if (doc.exitFullscreen) {
+            await doc.exitFullscreen();
+        } else if (doc.webkitExitFullscreen) {
+            await doc.webkitExitFullscreen();
+        } else if (doc.mozCancelFullScreen) {
+            await doc.mozCancelFullScreen();
+        } else if (doc.msExitFullscreen) {
+            await doc.msExitFullscreen();
         } else {
             return false;
         }
@@ -269,7 +288,7 @@ export function useFullscreenPrompt(options: UseFullscreenPromptOptions = {}) {
         }
     }, [hasChecked, mobileOnly, autoApplyPreference]);
 
-    const handleChoice = useCallback((wantsFullscreen: boolean) => {
+    const handleChoice = useCallback((_wantsFullscreen: boolean) => {
         setShowPrompt(false);
     }, []);
 

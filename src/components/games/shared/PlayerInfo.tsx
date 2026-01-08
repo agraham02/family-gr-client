@@ -131,7 +131,6 @@ function TurnIndicator({ isActive }: { isActive: boolean }) {
  * Uses Shadcn components and adapts layout based on seat position.
  */
 function PlayerInfo({
-    playerId,
     playerName,
     isCurrentTurn,
     isLocalPlayer = false,

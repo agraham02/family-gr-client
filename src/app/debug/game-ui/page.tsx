@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useMemo, useEffect } from "react";
-import { motion, AnimatePresence, LayoutGroup } from "motion/react";
+import { motion, LayoutGroup } from "motion/react";
 import { toast } from "sonner";
 import {
     GameTable,
@@ -377,22 +377,25 @@ function DominoesDebugPanel({
         const tilesCount = gameData.handsCounts[playerId] ?? 0;
         const winTarget = gameData.settings.winTarget;
 
-        return () => (
-            <div className="flex gap-1 items-center flex-wrap">
-                <Badge
-                    variant="outline"
-                    className="text-[10px] px-1.5 py-0 bg-black/30 border-white/20 text-white/80"
-                >
-                    Score: {score}/{winTarget}
-                </Badge>
-                <Badge
-                    variant="outline"
-                    className="text-[10px] px-1.5 py-0 bg-black/30 border-white/20 text-white/80"
-                >
-                    Tiles: {tilesCount}
-                </Badge>
-            </div>
-        );
+        function DominoesStatsDisplay() {
+            return (
+                <div className="flex gap-1 items-center flex-wrap">
+                    <Badge
+                        variant="outline"
+                        className="text-[10px] px-1.5 py-0 bg-black/30 border-white/20 text-white/80"
+                    >
+                        Score: {score}/{winTarget}
+                    </Badge>
+                    <Badge
+                        variant="outline"
+                        className="text-[10px] px-1.5 py-0 bg-black/30 border-white/20 text-white/80"
+                    >
+                        Tiles: {tilesCount}
+                    </Badge>
+                </div>
+            );
+        }
+        return DominoesStatsDisplay;
     };
 
     return (
@@ -494,7 +497,7 @@ export default function GameUIDebugPage() {
     const [activePlayerIndex, setActivePlayerIndex] = useState(0);
     const [showDebugGrid, setShowDebugGrid] = useState(false);
     const [isDealing, setIsDealing] = useState(false);
-    const [hasDealt, setHasDealt] = useState(false);
+    const [, setHasDealt] = useState(false);
 
     // Spades-specific state
     const [spadesGameData, setSpadesGameData] = useState<SpadesData | null>(

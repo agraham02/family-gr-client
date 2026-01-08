@@ -1,5 +1,20 @@
 import { User } from "..";
 
+export interface RoomSettings {
+    maxPlayers?: number;
+    pauseTimeoutSeconds?: number;
+}
+
+export interface GameSettings {
+    // Dominoes settings
+    winTarget?: number;
+    drawFromBoneyard?: boolean;
+    // Spades settings
+    allowNil?: boolean;
+    blindNilEnabled?: boolean;
+    bagsPenalty?: number;
+}
+
 export type LobbyData = {
     code: string;
     name: string;
@@ -11,9 +26,11 @@ export type LobbyData = {
     leaderId: string;
     selectedGameType: string;
     teams?: string[][]; // Optional, only if game requires teams
+    settings?: RoomSettings; // Room-level settings
+    gameSettings?: GameSettings; // Game-specific settings
     isPaused?: boolean; // Track if game is paused due to disconnections
     pausedAt?: string; // ISO timestamp when game was paused
-    // Add other fields as needed
+    spectators?: string[]; // User IDs of spectators
 };
 
 export type BaseRoomEvent = {
@@ -70,4 +87,32 @@ export type RoomEventPayload =
           event: "user_kicked";
           userId: string;
           userName?: string;
+      })
+    | (BaseRoomEvent & {
+          event: "room_settings_updated";
+          settings: RoomSettings;
+      })
+    | (BaseRoomEvent & {
+          event: "game_settings_updated";
+          gameSettings: GameSettings;
+      })
+    | (BaseRoomEvent & {
+          event: "user_joined";
+          userName: string;
+          isSpectator?: boolean;
+      })
+    | (BaseRoomEvent & {
+          event: "player_moved_to_spectators";
+          userId: string;
+          userName: string;
+      })
+    | (BaseRoomEvent & {
+          event: "player_slot_claimed";
+          claimingUserId: string;
+          claimingUserName: string;
+          targetSlotUserId: string;
+      })
+    | (BaseRoomEvent & {
+          event: "teams_set";
+          teams: string[][];
       });
