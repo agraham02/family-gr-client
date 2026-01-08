@@ -1,25 +1,36 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Button } from "../ui/button";
-import { Input } from "../ui/input";
+import { Label } from "../ui/label";
+import { Separator } from "../ui/separator";
+import { Slider } from "../ui/slider";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { useSession } from "@/contexts/SessionContext";
 import { toast } from "sonner";
+import { RoomSettings, GameSettings } from "@/types/lobby";
+import { SettingsIcon, PlayIcon, DoorOpenIcon, UsersIcon } from "lucide-react";
+
+interface RoomControlsCardProps {
+    selectedGame: string | null;
+    isPartyLeader: boolean;
+    roomSettings?: RoomSettings;
+    gameSettings?: GameSettings;
+}
 
 export default function RoomControlsCard({
     selectedGame,
     isPartyLeader,
-}: {
-    selectedGame: string | null;
-    isPartyLeader: boolean;
-}) {
+    roomSettings,
+    gameSettings,
+}: RoomControlsCardProps) {
     const { socket, connected } = useWebSocket();
     const { userId, roomId } = useSession();
 
-    // Game-specific settings
-    const [dominoesWinTarget, setDominoesWinTarget] = useState<number>(100);
     const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+    const [localMaxPlayers, setLocalMaxPlayers] = useState<number | undefined>(
+        roomSettings?.maxPlayers
+    );
 
     function handleCloseRoom() {
         setShowCloseConfirm(true);
@@ -41,15 +52,6 @@ export default function RoomControlsCard({
             return;
         }
 
-        // Build game-specific settings
-        let gameSettings: Record<string, unknown> | undefined;
-
-        if (selectedGame === "dominoes") {
-            gameSettings = {
-                winTarget: dominoesWinTarget,
-            };
-        }
-
         socket.emit("start_game", {
             roomId,
             userId,
@@ -58,65 +60,95 @@ export default function RoomControlsCard({
         });
     }
 
+    const handleMaxPlayersChange = useCallback(
+        (value: number | undefined) => {
+            setLocalMaxPlayers(value);
+            if (!socket || !connected || !isPartyLeader) return;
+            socket.emit("update_room_settings", {
+                roomId,
+                userId,
+                settings: { maxPlayers: value },
+            });
+        },
+        [socket, connected, roomId, userId, isPartyLeader]
+    );
+
     return (
-        <Card className="bg-white dark:bg-zinc-900 shadow-md">
-            <CardHeader>
-                <CardTitle>Room Controls</CardTitle>
+        <Card className="backdrop-blur-sm bg-white/90 dark:bg-zinc-900/90 border-zinc-200/50 dark:border-zinc-700/50 shadow-lg">
+            <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2">
+                    <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
+                        <SettingsIcon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
+                    </div>
+                    Room Controls
+                </CardTitle>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
-                {/* Game-specific settings */}
-                {isPartyLeader && selectedGame === "dominoes" && (
-                    <div className="space-y-2 p-3 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
-                        <div className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                            Dominoes Settings
-                        </div>
-                        <div className="flex items-center gap-3">
-                            <label
-                                htmlFor="winTarget"
-                                className="text-sm text-zinc-600 dark:text-zinc-400 whitespace-nowrap"
-                            >
-                                Win Target:
-                            </label>
-                            <Input
-                                id="winTarget"
-                                type="number"
-                                min={50}
-                                max={500}
-                                step={25}
-                                value={dominoesWinTarget}
-                                onChange={(e) =>
-                                    setDominoesWinTarget(
-                                        Math.max(
-                                            50,
-                                            Math.min(
-                                                500,
-                                                Number(e.target.value) || 100
-                                            )
-                                        )
-                                    )
-                                }
-                                className="w-24"
-                            />
-                            <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                                points
+                {/* Room Settings - Max Players */}
+                {isPartyLeader && (
+                    <div className="space-y-3 p-4 bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 rounded-xl border border-blue-200 dark:border-blue-800">
+                        <div className="flex items-center gap-2 text-blue-700 dark:text-blue-300">
+                            <UsersIcon className="w-4 h-4" />
+                            <span className="text-sm font-medium">
+                                Room Settings
                             </span>
                         </div>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                            First player to reach this score wins the game.
-                        </p>
+                        <div className="space-y-2">
+                            <div className="flex items-center justify-between">
+                                <Label
+                                    htmlFor="maxPlayers"
+                                    className="text-sm text-zinc-600 dark:text-zinc-400"
+                                >
+                                    Max Players
+                                </Label>
+                                <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+                                    {localMaxPlayers ?? "Unlimited"}
+                                </span>
+                            </div>
+                            <Slider
+                                id="maxPlayers"
+                                min={2}
+                                max={10}
+                                step={1}
+                                value={[localMaxPlayers ?? 10]}
+                                onValueChange={([value]) =>
+                                    handleMaxPlayersChange(
+                                        value === 10 ? undefined : value
+                                    )
+                                }
+                                className="w-full"
+                            />
+                            <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                                Limit how many players can join (slide to 10 for
+                                unlimited)
+                            </p>
+                        </div>
                     </div>
                 )}
 
-                <Button
-                    variant="destructive"
-                    className="w-full"
-                    onClick={handleCloseRoom}
-                >
-                    Close Room
-                </Button>
+                {/* Start Game Button */}
                 {isPartyLeader && (
-                    <Button className="w-full" onClick={handleStartGame}>
-                        Start Game
+                    <Button
+                        onClick={handleStartGame}
+                        disabled={!selectedGame}
+                        className="w-full h-12 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-semibold text-base shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <PlayIcon className="w-5 h-5" />
+                        {selectedGame ? "Start Game" : "Select a Game First"}
+                    </Button>
+                )}
+
+                <Separator className="my-1" />
+
+                {/* Close Room Button */}
+                {isPartyLeader && (
+                    <Button
+                        variant="outline"
+                        className="w-full h-10 border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 hover:border-red-300 dark:hover:border-red-800"
+                        onClick={handleCloseRoom}
+                    >
+                        <DoorOpenIcon className="w-4 h-4" />
+                        Close Room
                     </Button>
                 )}
 

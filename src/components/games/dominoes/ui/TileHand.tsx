@@ -12,6 +12,7 @@ interface TileHandProps {
     isMyTurn: boolean;
     onTileSelect: (tile: TileType | null) => void;
     className?: string;
+    showHints?: boolean;
 }
 
 /**
@@ -42,6 +43,7 @@ export default function TileHand({
     isMyTurn,
     onTileSelect,
     className,
+    showHints = false,
 }: TileHandProps) {
     return (
         <div className={cn("w-full", className)}>
@@ -53,7 +55,9 @@ export default function TileHand({
             {/* Tiles container with horizontal scroll on mobile */}
             <div className="flex gap-2 overflow-x-auto pb-2 px-1 snap-x snap-mandatory scrollbar-thin scrollbar-thumb-zinc-300 dark:scrollbar-thumb-zinc-700">
                 {tiles.map((tile) => {
-                    const playable = isMyTurn && canPlayTile(tile, board);
+                    // Only check playability when hints are enabled
+                    const playable =
+                        isMyTurn && (!showHints || canPlayTile(tile, board));
                     const isSelected = selectedTile?.id === tile.id;
 
                     return (

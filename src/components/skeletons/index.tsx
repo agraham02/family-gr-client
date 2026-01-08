@@ -67,51 +67,74 @@ export function GameSkeleton() {
  */
 export function LobbySkeleton() {
     return (
-        <main className="px-4 py-8 flex flex-col items-center">
-            {/* Header */}
-            <header className="text-center mb-8">
-                <Skeleton className="h-9 w-48 mx-auto mb-2" />
-                <div className="flex items-center justify-center gap-2">
-                    <Skeleton className="h-6 w-32" />
-                    <Skeleton className="h-8 w-8 rounded-md" />
-                </div>
-            </header>
-
-            {/* Dashboard grid */}
-            <div className="w-full max-w-5xl grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {/* Player List Card */}
-                <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-md p-4 space-y-3">
-                    <Skeleton className="h-6 w-24 mb-4" />
-                    {Array.from({ length: 4 }).map((_, i) => (
-                        <div key={i} className="flex items-center gap-3 p-2">
-                            <Skeleton className="h-10 w-10 rounded-full" />
-                            <div className="flex-1 space-y-2">
-                                <Skeleton className="h-4 w-24" />
-                                <Skeleton className="h-3 w-16" />
+        <main className="min-h-screen bg-gradient-to-b from-zinc-50 via-zinc-100 to-zinc-50 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950">
+            <div className="px-4 py-6 md:py-8">
+                {/* Header Skeleton */}
+                <div className="max-w-6xl mx-auto">
+                    <div className="p-4 md:p-6 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm border border-zinc-200/50 dark:border-zinc-700/50 shadow-lg">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                            <div className="space-y-2">
+                                <Skeleton className="h-8 w-48" />
+                                <div className="flex items-center gap-2">
+                                    <Skeleton className="h-5 w-24 rounded-full" />
+                                    <Skeleton className="h-5 w-20 rounded-full" />
+                                </div>
                             </div>
-                            <Skeleton className="h-6 w-16 rounded-full" />
+                            <div className="flex items-center gap-3">
+                                <Skeleton className="h-12 w-48 rounded-xl" />
+                                <Skeleton className="h-10 w-10 rounded-xl" />
+                            </div>
                         </div>
-                    ))}
-                </div>
-
-                {/* Available Games Card */}
-                <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-md p-4 space-y-3">
-                    <Skeleton className="h-6 w-32 mb-4" />
-                    <div className="space-y-2">
-                        {Array.from({ length: 3 }).map((_, i) => (
-                            <Skeleton
-                                key={i}
-                                className="h-16 w-full rounded-lg"
-                            />
-                        ))}
                     </div>
                 </div>
 
-                {/* Room Controls Card */}
-                <div className="bg-white dark:bg-zinc-900 rounded-xl shadow-md p-4 space-y-3">
-                    <Skeleton className="h-6 w-28 mb-4" />
-                    <Skeleton className="h-10 w-full rounded-md" />
-                    <Skeleton className="h-10 w-full rounded-md" />
+                {/* Dashboard grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 w-full max-w-6xl mx-auto mt-6 md:mt-8">
+                    {/* Player List Card */}
+                    <div className="lg:col-span-4 bg-white/90 dark:bg-zinc-900/90 rounded-xl shadow-lg p-4 space-y-3 border border-zinc-200/50 dark:border-zinc-700/50">
+                        <div className="flex items-center gap-2 mb-4">
+                            <Skeleton className="h-9 w-9 rounded-lg" />
+                            <Skeleton className="h-6 w-24" />
+                        </div>
+                        {Array.from({ length: 3 }).map((_, i) => (
+                            <div
+                                key={i}
+                                className="flex items-center gap-3 p-3 rounded-xl bg-zinc-50 dark:bg-zinc-800/50"
+                            >
+                                <Skeleton className="h-10 w-10 rounded-full" />
+                                <div className="flex-1 space-y-2">
+                                    <Skeleton className="h-4 w-24" />
+                                    <Skeleton className="h-3 w-16" />
+                                </div>
+                                <Skeleton className="h-8 w-16 rounded-md" />
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Available Games Card */}
+                    <div className="lg:col-span-4 bg-white/90 dark:bg-zinc-900/90 rounded-xl shadow-lg p-4 space-y-3 border border-zinc-200/50 dark:border-zinc-700/50">
+                        <div className="flex items-center gap-2 mb-4">
+                            <Skeleton className="h-9 w-9 rounded-lg" />
+                            <Skeleton className="h-6 w-32" />
+                        </div>
+                        {Array.from({ length: 2 }).map((_, i) => (
+                            <Skeleton
+                                key={i}
+                                className="h-20 w-full rounded-xl"
+                            />
+                        ))}
+                    </div>
+
+                    {/* Room Controls Card */}
+                    <div className="lg:col-span-4 bg-white/90 dark:bg-zinc-900/90 rounded-xl shadow-lg p-4 space-y-4 border border-zinc-200/50 dark:border-zinc-700/50">
+                        <div className="flex items-center gap-2 mb-4">
+                            <Skeleton className="h-9 w-9 rounded-lg" />
+                            <Skeleton className="h-6 w-28" />
+                        </div>
+                        <Skeleton className="h-12 w-full rounded-lg" />
+                        <Skeleton className="h-1 w-full" />
+                        <Skeleton className="h-10 w-full rounded-lg" />
+                    </div>
                 </div>
             </div>
         </main>

@@ -160,7 +160,7 @@ export default function Board({
                                     : "Waiting for first tile..."}
                             </div>
                         ) : (
-                            board.tiles.map((tile, index) => (
+                            board.tiles.map((tile) => (
                                 <div key={tile.id} className="snap-center">
                                     <Tile
                                         tile={tile}

@@ -4,7 +4,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useSession } from "@/contexts/SessionContext";
-import { DominoesData, Players } from "@/types";
+import { DominoesData } from "@/types";
 import { cn } from "@/lib/utils";
 import { Trophy, Crown } from "lucide-react";
 

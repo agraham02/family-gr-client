@@ -2,6 +2,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useSession } from "@/contexts/SessionContext";
 import { SpadesData } from "@/types/games/spades";
+import { motion } from "motion/react";
+import { Trophy, Target, TrendingUp, Users } from "lucide-react";
 import React, { useEffect, useState } from "react";
 
 const AUTO_CONTINUE_SECONDS = 10;
@@ -35,78 +37,129 @@ export default function RoundSummaryModal({
 
     return (
         <Dialog open={isOpen}>
-            <DialogContent className="flex flex-col items-center gap-4 max-w-lg">
-                <DialogTitle>
-                    <span className="text-2xl font-bold text-cyan-700 mb-2">
-                        Round Summary
-                    </span>
+            <DialogContent className="flex flex-col items-center gap-6 max-w-lg bg-slate-900 border-white/10 text-white p-6">
+                <DialogTitle className="flex items-center gap-2 text-2xl font-bold text-white">
+                    <Trophy className="w-7 h-7 text-amber-400" />
+                    Round {gameData.round} Complete
                 </DialogTitle>
-                <div className="w-full text-left flex flex-col gap-6">
-                    {Object.entries(gameData.teams).map(([teamId, team]) => (
-                        <div
-                            key={teamId}
-                            className="rounded-xl bg-gradient-to-br from-cyan-50/80 to-white/80 border border-cyan-200 shadow-sm p-4 flex flex-col gap-2"
-                        >
-                            <div className="flex items-center gap-2 mb-2">
-                                <span className="font-bold text-lg text-cyan-700">
-                                    Team {teamId}
-                                </span>
-                            </div>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2">
-                                {team.players.map((pid) => (
-                                    <div
-                                        key={pid}
-                                        className="flex items-center gap-3 bg-white/60 rounded-md px-3 py-2 shadow-sm"
-                                    >
-                                        <span className="font-semibold text-cyan-700 text-base">
-                                            {gameData.players[pid]?.name || pid}
-                                        </span>
-                                        <span className="text-xs text-gray-500">
-                                            Bid:{" "}
-                                            <span className="font-bold text-gray-700">
-                                                {gameData.bids[pid]?.amount ??
-                                                    0}
+
+                <div className="w-full space-y-4">
+                    {Object.entries(gameData.teams).map(
+                        ([teamId, team], index) => {
+                            const roundScore =
+                                gameData.roundTeamScores[Number(teamId)] ?? 0;
+                            const isPositive = roundScore >= 0;
+
+                            return (
+                                <motion.div
+                                    key={teamId}
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: index * 0.1 }}
+                                    className={`rounded-xl p-4 ${
+                                        index === 0
+                                            ? "bg-gradient-to-br from-blue-500/20 to-blue-600/10 border border-blue-500/30"
+                                            : "bg-gradient-to-br from-red-500/20 to-red-600/10 border border-red-500/30"
+                                    }`}
+                                >
+                                    <div className="flex items-center justify-between mb-3">
+                                        <div className="flex items-center gap-2">
+                                            <Users
+                                                className={`w-5 h-5 ${
+                                                    index === 0
+                                                        ? "text-blue-400"
+                                                        : "text-red-400"
+                                                }`}
+                                            />
+                                            <span className="font-bold text-lg">
+                                                Team {Number(teamId) + 1}
                                             </span>
-                                        </span>
-                                        <span className="text-xs text-gray-500">
-                                            Tricks:{" "}
-                                            <span className="font-bold text-gray-700">
-                                                {gameData.roundTrickCounts[
-                                                    pid
-                                                ] ?? 0}
-                                            </span>
-                                        </span>
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <motion.div
+                                                className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium ${
+                                                    isPositive
+                                                        ? "bg-emerald-500/20 text-emerald-400"
+                                                        : "bg-red-500/20 text-red-400"
+                                                }`}
+                                                initial={{ scale: 0.8 }}
+                                                animate={{ scale: 1 }}
+                                                transition={{
+                                                    delay: 0.3 + index * 0.1,
+                                                }}
+                                            >
+                                                <TrendingUp
+                                                    className={`w-4 h-4 ${
+                                                        !isPositive &&
+                                                        "rotate-180"
+                                                    }`}
+                                                />
+                                                {isPositive ? "+" : ""}
+                                                {roundScore}
+                                            </motion.div>
+                                            <div className="text-2xl font-bold">
+                                                {team.score}
+                                            </div>
+                                        </div>
                                     </div>
-                                ))}
-                            </div>
-                            <div className="flex flex-col gap-1 mt-2">
-                                <span className="text-sm text-gray-700">
-                                    Team Round Score:{" "}
-                                    <span className="font-bold text-cyan-800">
-                                        {gameData.roundTeamScores[
-                                            Number(teamId)
-                                        ] ?? 0}
-                                    </span>
-                                </span>
-                                <span className="text-sm text-gray-700">
-                                    Total Team Score:{" "}
-                                    <span className="font-bold text-cyan-800">
-                                        {team.score}
-                                    </span>
-                                </span>
-                            </div>
-                        </div>
-                    ))}
+
+                                    <div className="grid grid-cols-2 gap-2">
+                                        {team.players.map((pid) => (
+                                            <div
+                                                key={pid}
+                                                className="flex items-center justify-between bg-white/5 rounded-lg px-3 py-2"
+                                            >
+                                                <span className="font-medium text-white/90 truncate max-w-[100px]">
+                                                    {gameData.players[pid]
+                                                        ?.name || pid}
+                                                </span>
+                                                <div className="flex gap-3 text-sm">
+                                                    <span className="text-white/60">
+                                                        <Target className="w-3 h-3 inline mr-1" />
+                                                        {gameData.bids[pid]
+                                                            ?.amount ?? 0}
+                                                    </span>
+                                                    <span
+                                                        className={
+                                                            (gameData
+                                                                .roundTrickCounts[
+                                                                pid
+                                                            ] ?? 0) >=
+                                                            (gameData.bids[pid]
+                                                                ?.amount ?? 0)
+                                                                ? "text-emerald-400"
+                                                                : "text-red-400"
+                                                        }
+                                                    >
+                                                        {gameData
+                                                            .roundTrickCounts[
+                                                            pid
+                                                        ] ?? 0}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </motion.div>
+                            );
+                        }
+                    )}
                 </div>
                 {isLeader && (
                     <Button
-                        className="mt-6 w-full text-base font-semibold py-3 rounded-lg shadow-md transition-colors"
+                        className="mt-2 w-full h-12 text-base font-semibold rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-lg"
                         onClick={() =>
                             sendGameAction("CONTINUE_AFTER_ROUND_SUMMARY", {})
                         }
                     >
                         Continue {countdown > 0 && `(${countdown}s)`}
                     </Button>
+                )}
+
+                {!isLeader && (
+                    <p className="text-sm text-white/50 text-center">
+                        Waiting for the host to continue...
+                    </p>
                 )}
             </DialogContent>
         </Dialog>
