@@ -71,8 +71,8 @@ function TurnIndicator({ isActive }: { isActive: boolean }) {
             className="absolute inset-0 rounded-full pointer-events-none"
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{
-                opacity: [0.4, 0.8, 0.4],
-                scale: [1, 1.15, 1],
+                opacity: [0.5, 0.9, 0.5],
+                scale: [1, 1.3, 1],
             }}
             transition={{
                 duration: 1.5,

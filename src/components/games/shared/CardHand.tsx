@@ -1,12 +1,13 @@
 "use client";
 
-import React from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { PlayingCard as PlayingCardType } from "@/types";
 import { useGameTable } from "./GameTable";
 import { useEdgeRegion } from "./EdgeRegion";
 import { CardSize } from "./PlayingCard";
+import CardBadge from "./CardBadge";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -41,6 +42,14 @@ interface CardHandProps {
     isDealing?: boolean;
     /** Rotation in degrees (overrides EdgeRegion context) */
     rotation?: number;
+    /** Enable tap-to-spread on cramped screens (auto-enabled on compact layout) */
+    enableTapToSpread?: boolean;
+    /** Duration in ms before auto-collapsing spread (default: 3000) */
+    spreadAutoCollapseMs?: number;
+    /** Controlled spread state (optional - for outside click handling) */
+    isSpreadControlled?: boolean;
+    /** Callback when spread state changes */
+    onSpreadChange?: (isSpread: boolean) => void;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -208,7 +217,14 @@ function CardInHand({
                     ? { scale: 0.95, transition: { duration: 0.1 } }
                     : undefined
             }
-            onClick={isInteractive && !isDisabled ? onClick : undefined}
+            onClick={
+                isInteractive && !isDisabled
+                    ? (e) => {
+                          e.stopPropagation();
+                          onClick?.();
+                      }
+                    : undefined
+            }
         >
             <div
                 className={cn(
@@ -306,9 +322,98 @@ function CardHand({
     className,
     isDealing = false,
     rotation: rotationProp,
+    enableTapToSpread,
+    spreadAutoCollapseMs = 3000,
+    isSpreadControlled,
+    onSpreadChange,
 }: CardHandProps) {
-    const { dimensions } = useGameTable();
+    const { dimensions, layoutConfig } = useGameTable();
     const edgeContext = useEdgeRegion();
+
+    // Tap-to-spread state
+    const [isSpreadInternal, setIsSpreadInternal] = useState(false);
+    const [spreadTappedIndex, setSpreadTappedIndex] = useState<number | null>(
+        null
+    );
+
+    // Use controlled state if provided, otherwise use internal
+    // When controlled, the parent manages spread state for outside click handling
+    const isSpread =
+        isSpreadControlled !== undefined
+            ? isSpreadControlled
+            : isSpreadInternal;
+
+    // Collapse spread (used internally and by parent via controlled state)
+    const collapseSpread = useCallback(() => {
+        setIsSpreadInternal(false);
+        setSpreadTappedIndex(null);
+        onSpreadChange?.(false);
+    }, [onSpreadChange]);
+
+    // Expand spread
+    const expandSpread = useCallback(() => {
+        setIsSpreadInternal(true);
+        onSpreadChange?.(true);
+    }, [onSpreadChange]);
+
+    // Sync with controlled prop when parent collapses
+    useEffect(() => {
+        if (isSpreadControlled === false && isSpreadInternal) {
+            setIsSpreadInternal(false);
+            setSpreadTappedIndex(null);
+        }
+    }, [isSpreadControlled, isSpreadInternal]);
+
+    // Determine if tap-to-spread should be enabled
+    const shouldEnableTapToSpread =
+        enableTapToSpread ??
+        (isLocalPlayer && layoutConfig.layoutMode === "compact");
+
+    // Auto-collapse spread after timeout
+    useEffect(() => {
+        if (isSpread && spreadAutoCollapseMs > 0) {
+            const timer = setTimeout(() => {
+                collapseSpread();
+            }, spreadAutoCollapseMs);
+            return () => clearTimeout(timer);
+        }
+    }, [isSpread, spreadAutoCollapseMs, collapseSpread]);
+
+    // Handle tap on card area (for spread)
+    const handleSpreadTap = useCallback(
+        (index: number, card: PlayingCardType) => {
+            if (!shouldEnableTapToSpread) {
+                // Normal click behavior
+                onCardClick?.(index, card);
+                return;
+            }
+
+            if (!isSpread) {
+                // First tap: spread cards AND select the tapped card
+                expandSpread();
+                setSpreadTappedIndex(index);
+                onCardClick?.(index, card);
+            } else {
+                // Already spread - just select the tapped card
+                // Cards stay spread until outside tap or timer
+                setSpreadTappedIndex(index);
+                onCardClick?.(index, card);
+            }
+        },
+        [shouldEnableTapToSpread, isSpread, onCardClick, expandSpread]
+    );
+
+    // For opponents in badge mode, render CardBadge instead
+    const effectiveCardCount = cardCount ?? cards.length;
+    if (!isLocalPlayer && layoutConfig.useBadgeMode && effectiveCardCount > 0) {
+        return (
+            <CardBadge
+                cardCount={effectiveCardCount}
+                size="sm"
+                className={className}
+            />
+        );
+    }
 
     // Get rotation from prop, EdgeRegion context, or default to 0
     const rotation = rotationProp ?? edgeContext?.cardRotation ?? 0;
@@ -317,16 +422,12 @@ function CardHand({
     // The rotation will handle the visual orientation for side players
     const effectiveOrientation: FanOrientation = orientation ?? "horizontal";
 
-    // Determine responsive card size based on position and screen size
+    // Determine responsive card size based on layout config
     const responsiveSize: CardSize =
         size ??
-        (() => {
-            const isMobile = dimensions.width < 640;
-            if (isLocalPlayer) {
-                return isMobile ? "md" : "lg";
-            }
-            return isMobile ? "xs" : "sm";
-        })();
+        (isLocalPlayer
+            ? layoutConfig.heroCardSize
+            : layoutConfig.opponentCardSize);
 
     // For opponents, show card backs based on cardCount
     const displayCards: (PlayingCardType | null)[] =
@@ -336,22 +437,32 @@ function CardHand({
 
     const isHorizontal = effectiveOrientation === "horizontal";
 
+    // Calculate the card dimensions first (needed for spacing calculations)
+    const cardDimensions = SIZE_DIMENSIONS[responsiveSize];
+
     // Calculate available width for the hero's hand (account for some padding)
     const availableWidth = isLocalPlayer ? dimensions.width - 32 : undefined;
 
-    const spacing = getCardSpacing(
+    // Normal spacing (auto-calculated to fit available width)
+    const normalSpacing = getCardSpacing(
         displayCards.length,
         responsiveSize,
         isHorizontal,
         availableWidth
     );
 
+    // Spread spacing: minimal overlap to show most of each card
+    // Lower spacing = less overlap = more card visible
+    // Use ~15% of card width as spacing (showing ~85% of each card)
+    const spreadSpacing = Math.max(5, cardDimensions.width * 0.15);
+
+    const spacing = isSpread ? spreadSpacing : normalSpacing;
+
     // Calculate if the hand container needs different sizing based on rotation
     // For 90/-90 degree rotations, the hand will appear vertical
     const isRotatedSideways = Math.abs(rotation) === 90;
 
     // Calculate the actual width/height of the fanned card hand
-    const cardDimensions = SIZE_DIMENSIONS[responsiveSize];
     const numCards = displayCards.length;
     // First card full width + (remaining cards * spacing)
     const totalHandWidth = isHorizontal
@@ -384,33 +495,42 @@ function CardHand({
                 }}
             >
                 <AnimatePresence mode="popLayout">
-                    {displayCards.map((card, index) => (
-                        <CardInHand
-                            key={
-                                card
-                                    ? `${card.suit}-${card.rank}`
-                                    : `back-${index}`
-                            }
-                            card={card}
-                            index={index}
-                            totalCards={displayCards.length}
-                            isHidden={!isLocalPlayer}
-                            isSelected={selectedIndex === index}
-                            isDisabled={disabledIndices.includes(index)}
-                            isInteractive={
-                                interactive && isLocalPlayer && !isDealing
-                            }
-                            size={responsiveSize}
-                            spacing={spacing}
-                            playerId={playerId}
-                            isHorizontal={isHorizontal}
-                            onClick={
-                                onCardClick && card
-                                    ? () => onCardClick(index, card)
-                                    : undefined
-                            }
-                        />
-                    ))}
+                    {displayCards.map((card, index) => {
+                        // In spread mode, the tapped card is highlighted
+                        const isHighlighted =
+                            isSpread && spreadTappedIndex === index;
+                        // Use spread-tap highlighting OR normal selection
+                        const effectivelySelected =
+                            isHighlighted || selectedIndex === index;
+
+                        return (
+                            <CardInHand
+                                key={
+                                    card
+                                        ? `${card.suit}-${card.rank}`
+                                        : `back-${index}`
+                                }
+                                card={card}
+                                index={index}
+                                totalCards={displayCards.length}
+                                isHidden={!isLocalPlayer}
+                                isSelected={effectivelySelected}
+                                isDisabled={disabledIndices.includes(index)}
+                                isInteractive={
+                                    interactive && isLocalPlayer && !isDealing
+                                }
+                                size={responsiveSize}
+                                spacing={spacing}
+                                playerId={playerId}
+                                isHorizontal={isHorizontal}
+                                onClick={
+                                    card
+                                        ? () => handleSpreadTap(index, card)
+                                        : undefined
+                                }
+                            />
+                        );
+                    })}
                 </AnimatePresence>
             </div>
         </div>

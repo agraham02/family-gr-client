@@ -4,7 +4,7 @@ import React from "react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { PlayingCard as PlayingCardType } from "@/types";
-import { useGameTable } from "./GameTable";
+import { useGameTable, LayoutMode } from "./GameTable";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -24,9 +24,11 @@ interface TrickPileProps {
 }
 
 // Card positions in the trick pile - creates a natural spread with random variation
+// Scale factor adjusts the spread based on layout mode
 function getCardPosition(
     index: number,
-    playerId: string
+    playerId: string,
+    scale: number = 1
 ): { x: number; y: number; rotation: number } {
     // Base positions for up to 8 cards
     const basePositions = [
@@ -51,8 +53,8 @@ function getCardPosition(
     const randomOffsetY = ((hash * 7) % 10) - 5;
 
     return {
-        x: base.x + randomOffsetX,
-        y: base.y + randomOffsetY,
+        x: (base.x + randomOffsetX) * scale,
+        y: (base.y + randomOffsetY) * scale,
         rotation: randomRotation,
     };
 }
@@ -85,13 +87,27 @@ function TrickPile({
     winningCard,
     className,
 }: TrickPileProps) {
-    const { dimensions } = useGameTable();
+    const { dimensions, layoutConfig } = useGameTable();
+
+    // Scale down card positions and sizes for compact layout
+    const isCompact = layoutConfig.layoutMode === "compact";
+    const positionScale = isCompact ? 0.55 : 1;
+
+    // Card size classes based on layout mode
+    const cardSizeClasses = isCompact
+        ? "w-10 h-14 rounded-md" // Smaller cards on mobile
+        : "w-14 h-20 md:w-16 md:h-24 rounded-lg";
+
+    // Min-size classes based on layout mode
+    const minSizeClasses = isCompact
+        ? "min-h-[80px] min-w-[100px]" // Smaller container on mobile
+        : "min-h-[120px] min-w-[180px] md:min-h-[160px] md:min-w-[240px]";
 
     return (
         <div
             className={cn(
                 "relative flex items-center justify-center",
-                "min-h-[120px] min-w-[180px] md:min-h-[160px] md:min-w-[240px]",
+                minSizeClasses,
                 className
             )}
         >
@@ -102,7 +118,11 @@ function TrickPile({
                         play.card.rank === winningCard.rank &&
                         play.card.suit === winningCard.suit;
 
-                    const pos = getCardPosition(index, play.playerId);
+                    const pos = getCardPosition(
+                        index,
+                        play.playerId,
+                        positionScale
+                    );
 
                     return (
                         // Outer wrapper: handles layoutId transition (flies from hand to center)
@@ -129,10 +149,13 @@ function TrickPile({
                                 {/* Card */}
                                 <motion.div
                                     className={cn(
-                                        "relative w-14 h-20 md:w-16 md:h-24 rounded-lg bg-white shadow-xl",
+                                        "relative bg-white shadow-xl",
+                                        cardSizeClasses,
                                         "border border-gray-200 overflow-hidden",
                                         isWinning &&
-                                            "ring-4 ring-amber-400 shadow-amber-400/50"
+                                            (isCompact
+                                                ? "ring-2 ring-amber-400 shadow-amber-400/50"
+                                                : "ring-4 ring-amber-400 shadow-amber-400/50")
                                     )}
                                     initial={{ scale: 0.85, opacity: 0.5 }}
                                     animate={{ scale: 1, opacity: 1 }}
@@ -154,7 +177,10 @@ function TrickPile({
                                         {/* Top-left */}
                                         <div
                                             className={cn(
-                                                "text-[10px] md:text-xs font-bold flex flex-col items-center leading-tight",
+                                                isCompact
+                                                    ? "text-[8px]"
+                                                    : "text-[10px] md:text-xs",
+                                                "font-bold flex flex-col items-center leading-tight",
                                                 SUIT_COLORS[play.card.suit]
                                             )}
                                         >
@@ -167,7 +193,10 @@ function TrickPile({
                                         {/* Center */}
                                         <div
                                             className={cn(
-                                                "flex-1 flex items-center justify-center text-xl md:text-2xl",
+                                                "flex-1 flex items-center justify-center",
+                                                isCompact
+                                                    ? "text-base"
+                                                    : "text-xl md:text-2xl",
                                                 SUIT_COLORS[play.card.suit]
                                             )}
                                         >
@@ -177,7 +206,10 @@ function TrickPile({
                                         {/* Bottom-right (rotated) */}
                                         <div
                                             className={cn(
-                                                "text-[10px] md:text-xs font-bold flex flex-col items-center leading-tight rotate-180",
+                                                isCompact
+                                                    ? "text-[8px]"
+                                                    : "text-[10px] md:text-xs",
+                                                "font-bold flex flex-col items-center leading-tight rotate-180",
                                                 SUIT_COLORS[play.card.suit]
                                             )}
                                         >

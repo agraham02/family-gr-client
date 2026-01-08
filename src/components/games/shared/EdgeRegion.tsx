@@ -3,6 +3,7 @@
 import React, { ReactNode, createContext, useContext } from "react";
 import { cn } from "@/lib/utils";
 import { motion } from "motion/react";
+import { useGameTable } from "./GameTable";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -105,6 +106,8 @@ function EdgeRegion({
     isDealing = false,
 }: EdgeRegionProps) {
     const layout = EDGE_LAYOUTS[position];
+    const { layoutConfig } = useGameTable();
+    const isCompact = layoutConfig.layoutMode === "compact";
 
     const contextValue: EdgeRegionContextValue = {
         position,
@@ -112,13 +115,21 @@ function EdgeRegion({
         cardRotation: layout.cardRotation,
     };
 
-    // Different padding based on position
-    const paddingClasses = {
-        bottom: "pb-2 pt-4",
-        top: "pt-2 pb-4",
-        left: "pl-2 pr-4",
-        right: "pr-2 pl-4",
-    };
+    // Different padding based on position and layout mode
+    // Compact mode uses minimal padding to maximize card space
+    const paddingClasses = isCompact
+        ? {
+              bottom: "pb-1 pt-1",
+              top: "pt-1 pb-1",
+              left: "pl-1 pr-1",
+              right: "pr-1 pl-1",
+          }
+        : {
+              bottom: "pb-2 pt-4",
+              top: "pt-2 pb-4",
+              left: "pl-2 pr-4",
+              right: "pr-2 pl-4",
+          };
 
     // For left/right positions, cards are rotated and need to overflow visually
     // For top/bottom positions, we need overflow-hidden to prevent clipping issues

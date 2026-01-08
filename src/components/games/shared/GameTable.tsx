@@ -6,6 +6,85 @@ import { motion } from "motion/react";
 import { useContainerDimensions, ContainerDimensions } from "@/hooks";
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Layout Mode Types
+// ─────────────────────────────────────────────────────────────────────────────
+
+export type LayoutMode = "compact" | "comfortable" | "spacious";
+
+interface LayoutModeConfig {
+    /** The current layout mode */
+    layoutMode: LayoutMode;
+    /** Whether to show opponent cards as badges instead of fans */
+    useBadgeMode: boolean;
+    /** Card size for hero player */
+    heroCardSize: "sm" | "md" | "lg";
+    /** Card size for opponents (when not in badge mode) */
+    opponentCardSize: "xs" | "sm";
+}
+
+/**
+ * Determine layout mode based on viewport dimensions and player count
+ */
+function getLayoutMode(
+    width: number,
+    height: number,
+    playerCount: number
+): LayoutMode {
+    const isLandscape = width > height;
+    const isMobileLandscape = isLandscape && height < 500;
+    const isMobilePortrait = !isLandscape && width < 500;
+    const isTablet = width >= 500 && width < 1024 && height >= 500;
+
+    // Mobile landscape always compact
+    if (isMobileLandscape) return "compact";
+
+    // Mobile portrait always compact
+    if (isMobilePortrait) return "compact";
+
+    // Tablet with 4 players → comfortable (may need badges for side players)
+    if (isTablet && playerCount >= 4) return "comfortable";
+
+    // Tablet with 2-3 players → spacious
+    if (isTablet) return "spacious";
+
+    // Desktop → spacious
+    return "spacious";
+}
+
+/**
+ * Get layout configuration based on mode
+ */
+function getLayoutConfig(
+    mode: LayoutMode,
+    playerCount: number
+): LayoutModeConfig {
+    switch (mode) {
+        case "compact":
+            return {
+                layoutMode: mode,
+                useBadgeMode: true,
+                heroCardSize: "sm",
+                opponentCardSize: "xs",
+            };
+        case "comfortable":
+            return {
+                layoutMode: mode,
+                useBadgeMode: playerCount >= 4,
+                heroCardSize: "md",
+                opponentCardSize: "xs",
+            };
+        case "spacious":
+        default:
+            return {
+                layoutMode: mode,
+                useBadgeMode: false,
+                heroCardSize: "lg",
+                opponentCardSize: "sm",
+            };
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Context for sharing table state with child components
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -13,6 +92,10 @@ interface GameTableContextValue {
     dimensions: ContainerDimensions;
     playerCount: number;
     isDealing: boolean;
+    /** Current layout mode based on viewport and player count */
+    layoutMode: LayoutMode;
+    /** Layout configuration with card sizes and badge mode */
+    layoutConfig: LayoutModeConfig;
 }
 
 const GameTableContext = createContext<GameTableContextValue | null>(null);
@@ -38,6 +121,8 @@ interface GameTableProps {
     feltGradient?: string;
     /** Show debug grid overlay */
     showDebugGrid?: boolean;
+    /** Callback when the table background is clicked (for closing spread hands) */
+    onTableClick?: () => void;
 }
 
 /**
@@ -61,14 +146,25 @@ function GameTable({
     className,
     feltGradient = "from-emerald-800 via-emerald-700 to-teal-800",
     showDebugGrid = false,
+    onTableClick,
 }: GameTableProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const dimensions = useContainerDimensions(containerRef);
+
+    // Calculate layout mode based on dimensions and player count
+    const layoutMode = getLayoutMode(
+        dimensions.width,
+        dimensions.height,
+        playerCount
+    );
+    const layoutConfig = getLayoutConfig(layoutMode, playerCount);
 
     const contextValue: GameTableContextValue = {
         dimensions,
         playerCount,
         isDealing,
+        layoutMode,
+        layoutConfig,
     };
 
     return (
@@ -80,6 +176,7 @@ function GameTable({
                     `bg-gradient-to-br ${feltGradient}`,
                     className
                 )}
+                onClick={onTableClick}
             >
                 {/* Felt texture overlay - using layered gradients for scalable texture */}
                 <div
@@ -132,6 +229,8 @@ function GameTable({
                     <DebugOverlay
                         dimensions={dimensions}
                         playerCount={playerCount}
+                        layoutMode={layoutMode}
+                        layoutConfig={layoutConfig}
                     />
                 )}
 
@@ -166,9 +265,13 @@ function GameTable({
 function DebugOverlay({
     dimensions,
     playerCount,
+    layoutMode,
+    layoutConfig,
 }: {
     dimensions: ContainerDimensions;
     playerCount: number;
+    layoutMode: LayoutMode;
+    layoutConfig: LayoutModeConfig;
 }) {
     return (
         <div className="absolute inset-0 pointer-events-none z-50">
@@ -239,6 +342,14 @@ function DebugOverlay({
                 </div>
                 <div>Aspect: {dimensions.aspectRatio.toFixed(2)}</div>
                 <div>Players: {playerCount}</div>
+                <div className="mt-1 text-cyan-400">Layout: {layoutMode}</div>
+                <div className="text-cyan-400">
+                    Badge: {layoutConfig.useBadgeMode ? "Yes" : "No"}
+                </div>
+                <div className="text-cyan-400">
+                    Hero: {layoutConfig.heroCardSize} | Opp:{" "}
+                    {layoutConfig.opponentCardSize}
+                </div>
                 <div className="mt-1 text-yellow-400">Grid Layout Active</div>
             </div>
         </div>
@@ -263,7 +374,7 @@ interface TableCenterProps {
 export function TableCenter({
     children,
     className,
-    minSize = 150,
+    minSize = 100,
 }: TableCenterProps) {
     return (
         <motion.div
@@ -275,6 +386,8 @@ export function TableCenter({
                 gridArea: "center",
                 minWidth: minSize,
                 minHeight: minSize,
+                // Ensure center is truly centered within the grid cell
+                placeSelf: "center",
             }}
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}

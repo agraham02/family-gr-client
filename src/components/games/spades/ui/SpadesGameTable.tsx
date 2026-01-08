@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { toast } from "sonner";
 import {
     SpadesData,
     SpadesPlayerData,
@@ -52,6 +53,7 @@ function SpadesGameTable({
     const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(
         null
     );
+    const [isHeroHandSpread, setIsHeroHandSpread] = useState(false);
 
     const playerCount = playerData.localOrdering.length;
 
@@ -59,9 +61,11 @@ function SpadesGameTable({
     const handleCardSelect = useCallback(
         (index: number, card: PlayingCardType) => {
             if (selectedCardIndex === index) {
-                // Clicking the same card plays it
-                onCardPlay(card);
+                // Clear selection and spread FIRST to prevent visual glitch
                 setSelectedCardIndex(null);
+                setIsHeroHandSpread(false);
+                // Then play the card
+                onCardPlay(card);
             } else {
                 // Select the card
                 setSelectedCardIndex(index);
@@ -73,8 +77,12 @@ function SpadesGameTable({
     // Handle play button click
     const handlePlayCard = useCallback(() => {
         if (selectedCardIndex !== null && playerData.hand[selectedCardIndex]) {
-            onCardPlay(playerData.hand[selectedCardIndex]);
+            const card = playerData.hand[selectedCardIndex];
+            // Clear selection and spread FIRST
             setSelectedCardIndex(null);
+            setIsHeroHandSpread(false);
+            // Then play the card
+            onCardPlay(card);
         }
     }, [selectedCardIndex, playerData.hand, onCardPlay]);
 
@@ -83,10 +91,37 @@ function SpadesGameTable({
         setSelectedCardIndex(null);
     }, []);
 
-    // Reset selection when turn changes or phase changes
-    React.useEffect(() => {
+    // Track if we've shown the turn toast for this turn
+    const turnToastShownRef = useRef<number | null>(null);
+
+    // Reset selection and spread when turn changes or phase changes
+    useEffect(() => {
         setSelectedCardIndex(null);
+        setIsHeroHandSpread(false);
     }, [gameData.currentTurnIndex, gameData.phase]);
+
+    // Show toast when it's the player's turn
+    useEffect(() => {
+        if (
+            isMyTurn &&
+            gameData.phase === "playing" &&
+            turnToastShownRef.current !== gameData.currentTurnIndex
+        ) {
+            turnToastShownRef.current = gameData.currentTurnIndex;
+            toast.info("Your turn! Select a card to play", {
+                id: "your-turn-toast",
+                duration: 4000,
+                dismissible: true,
+            });
+        }
+    }, [isMyTurn, gameData.phase, gameData.currentTurnIndex]);
+
+    // Handle table click to collapse spread hands
+    const handleTableClick = useCallback(() => {
+        if (isHeroHandSpread) {
+            setIsHeroHandSpread(false);
+        }
+    }, [isHeroHandSpread]);
 
     // Get trick plays for display
     const trickPlays =
@@ -102,6 +137,7 @@ function SpadesGameTable({
                 playerCount={playerCount}
                 isDealing={false}
                 showDebugGrid={false}
+                onTableClick={handleTableClick}
             >
                 {/* Player Edge Regions */}
                 {playerData.localOrdering.map((playerId, index) => {
@@ -158,6 +194,12 @@ function SpadesGameTable({
                                 }
                                 playerId={playerId}
                                 isDealing={false}
+                                isSpreadControlled={
+                                    isLocal ? isHeroHandSpread : undefined
+                                }
+                                onSpreadChange={
+                                    isLocal ? setIsHeroHandSpread : undefined
+                                }
                             />
                         </EdgeRegion>
                     );
@@ -221,44 +263,24 @@ function SpadesGameTable({
                     isMyTurn &&
                     gameData.phase === "playing" && (
                         <motion.div
-                            className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex gap-3"
+                            className="fixed bottom-4 md:bottom-8 left-1/2 -translate-x-1/2 z-50 flex gap-2 md:gap-3"
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: 20 }}
                         >
                             <Button
                                 onClick={handlePlayCard}
-                                className="bg-emerald-600 hover:bg-emerald-700 shadow-lg"
+                                className="bg-emerald-600 hover:bg-emerald-700 shadow-lg text-xs md:text-sm px-3 py-1.5 md:px-4 md:py-2 h-auto"
                             >
                                 Play Card
                             </Button>
                             <Button
                                 onClick={handleCancelSelection}
                                 variant="outline"
-                                className="shadow-lg"
+                                className="shadow-lg text-xs md:text-sm px-3 py-1.5 md:px-4 md:py-2 h-auto"
                             >
                                 Cancel
                             </Button>
-                        </motion.div>
-                    )}
-            </AnimatePresence>
-
-            {/* Turn indicator message */}
-            <AnimatePresence>
-                {isMyTurn &&
-                    gameData.phase === "playing" &&
-                    selectedCardIndex === null && (
-                        <motion.div
-                            className="fixed bottom-32 left-1/2 -translate-x-1/2 z-50"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: 10 }}
-                        >
-                            <div className="bg-blue-500/90 backdrop-blur-sm rounded-full px-6 py-2 shadow-lg">
-                                <span className="text-white font-medium">
-                                    Your turn! Select a card to play
-                                </span>
-                            </div>
                         </motion.div>
                     )}
             </AnimatePresence>
