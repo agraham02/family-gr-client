@@ -1,10 +1,24 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "motion/react";
 import { PlayingCard as PlayingCardType } from "@/types";
 import { useGameTable } from "./GameTable";
+
+// Hash cache to avoid recalculating on every render
+const playerHashCache = new Map<string, number>();
+
+function getPlayerHash(playerId: string): number {
+    if (playerHashCache.has(playerId)) {
+        return playerHashCache.get(playerId)!;
+    }
+    const hash = playerId
+        .split("")
+        .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    playerHashCache.set(playerId, hash);
+    return hash;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -45,9 +59,7 @@ function getCardPosition(
     const base = basePositions[index % basePositions.length];
 
     // Add slight random variation based on playerId (deterministic per card)
-    const hash = playerId
-        .split("")
-        .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const hash = getPlayerHash(playerId);
     const randomRotation = (hash % 25) - 12 + index * 3; // -12 to +12 degrees base + slight increment
     const randomOffsetX = (hash % 10) - 5;
     const randomOffsetY = ((hash * 7) % 10) - 5;

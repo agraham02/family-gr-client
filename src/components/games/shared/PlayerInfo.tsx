@@ -2,6 +2,7 @@
 
 import React, { ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import { getInitials } from "@/lib/playerUtils";
 import { motion } from "motion/react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -60,14 +61,6 @@ interface PlayerInfoProps {
 // ─────────────────────────────────────────────────────────────────────────────
 // Helper Functions
 // ─────────────────────────────────────────────────────────────────────────────
-
-function getInitials(name: string): string {
-    return name
-        .split(" ")
-        .map((part) => part.charAt(0).toUpperCase())
-        .slice(0, 2)
-        .join("");
-}
 
 // Layout configuration based on seat position
 function getLayoutConfig(position: SeatPosition): {

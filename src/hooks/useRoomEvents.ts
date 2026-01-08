@@ -228,11 +228,23 @@ export function useRoomEvents(options: UseRoomEventsOptions) {
         [clearRoomSession, clearUserSession, router]
     );
 
+    // Track last roomId to detect actual room changes vs. temporary clears
+    const lastRoomIdRef = useRef<string | null>(null);
+
     useEffect(() => {
         if (!roomId || !userId) {
-            // Reset hasJoinedRef when roomId is cleared so we rejoin when it's set again
-            hasJoinedRef.current = false;
+            // Only reset hasJoinedRef if roomId was actually cleared (not just temporarily empty)
+            // This prevents race conditions during rapid navigation
+            if (lastRoomIdRef.current && !roomId) {
+                hasJoinedRef.current = false;
+            }
             return;
+        }
+
+        // Track room changes - reset join state when moving to a different room
+        if (lastRoomIdRef.current !== roomId) {
+            hasJoinedRef.current = false;
+            lastRoomIdRef.current = roomId;
         }
 
         const socket = getSocket();

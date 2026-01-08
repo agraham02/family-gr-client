@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from "react";
 import { Socket } from "socket.io-client";
 import { GameData, PlayerData } from "@/types";
+import { v4 as uuidv4 } from "uuid";
 
 /**
  * Optimistic action tracking
@@ -128,9 +129,7 @@ export function useOptimisticGameAction({
             }
 
             // Generate unique action ID
-            const actionId = `${userId}-${Date.now()}-${Math.random()
-                .toString(36)
-                .substring(7)}`;
+            const actionId = `${userId}-${uuidv4()}`;
 
             // Save snapshot
             const snapshot = {

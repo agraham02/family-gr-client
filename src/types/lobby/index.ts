@@ -41,7 +41,11 @@ export type BaseRoomEvent = {
 
 export type RoomEventPayload =
     | (BaseRoomEvent & { event: "sync" })
-    | (BaseRoomEvent & { event: "user_joined"; userName: string })
+    | (BaseRoomEvent & {
+          event: "user_joined";
+          userName: string;
+          isSpectator?: boolean;
+      })
     | (BaseRoomEvent & {
           event: "user_left";
           userName: string;
@@ -95,11 +99,6 @@ export type RoomEventPayload =
     | (BaseRoomEvent & {
           event: "game_settings_updated";
           gameSettings: GameSettings;
-      })
-    | (BaseRoomEvent & {
-          event: "user_joined";
-          userName: string;
-          isSpectator?: boolean;
       })
     | (BaseRoomEvent & {
           event: "player_moved_to_spectators";

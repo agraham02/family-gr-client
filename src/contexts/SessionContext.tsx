@@ -131,7 +131,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem("roomId");
     };
 
-    // Clear userId and roomId but preserve userName
+    // Clear userId and roomId but preserve userName only
     // Useful when user needs a completely fresh identity (e.g., kicked)
     const clearUserSession = () => {
         setRoomIdState("");

@@ -3,6 +3,10 @@
 import { useMemo } from "react";
 import { ContainerDimensions } from "./useContainerDimensions";
 
+// Player count constraints for table seating
+const MIN_PLAYERS = 2;
+const MAX_PLAYERS = 8;
+
 export interface PlayerPosition {
     x: number; // Absolute X position from container left
     y: number; // Absolute Y position from container top
@@ -116,7 +120,10 @@ export function usePlayerPositions(
             : height * mergedConfig.radiusYMultiplier;
 
         const positions: PlayerPosition[] = [];
-        const clampedCount = Math.max(2, Math.min(8, playerCount));
+        const clampedCount = Math.max(
+            MIN_PLAYERS,
+            Math.min(MAX_PLAYERS, playerCount)
+        );
 
         // Angle step between players (in radians)
         const angleStep = (2 * Math.PI) / clampedCount;

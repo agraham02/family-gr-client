@@ -497,17 +497,19 @@ export function GameSettingToggle({
     }, [storageKey]);
 
     const toggle = useCallback(() => {
-        const next = !enabled;
-        setEnabled(next);
-        localStorage.setItem(storageKey, String(next));
-        // Dispatch custom event for same-tab sync (storage events only fire cross-tab)
-        window.dispatchEvent(
-            new CustomEvent("game-setting-change", {
-                detail: { key: storageKey, value: next },
-            })
-        );
-        onChange?.(next);
-    }, [enabled, storageKey, onChange]);
+        setEnabled((prev) => {
+            const next = !prev;
+            localStorage.setItem(storageKey, String(next));
+            // Dispatch custom event for same-tab sync (storage events only fire cross-tab)
+            window.dispatchEvent(
+                new CustomEvent("game-setting-change", {
+                    detail: { key: storageKey, value: next },
+                })
+            );
+            onChange?.(next);
+            return next;
+        });
+    }, [storageKey, onChange]);
 
     return (
         <button

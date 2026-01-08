@@ -71,7 +71,8 @@ function optimisticSpadesPlayCard(
 
     // Update hands count
     const newHandsCounts = { ...gameData.handsCounts };
-    newHandsCounts[userId] = (newHandsCounts[userId] || 0) - 1;
+    const previousCount = newHandsCounts[userId] ?? playerData.hand.length;
+    newHandsCounts[userId] = previousCount - 1;
 
     // Update spadesBroken if a spade was played
     const newSpadesBroken = gameData.spadesBroken || card.suit === "Spades";
@@ -205,7 +206,7 @@ function optimisticDominoesPlaceTile(
 
     // Update hands count
     const newHandsCounts = { ...gameData.handsCounts };
-    newHandsCounts[userId] = (newHandsCounts[userId] || 0) - 1;
+    newHandsCounts[userId] = newHand.length;
 
     // Reset consecutive passes
     return {

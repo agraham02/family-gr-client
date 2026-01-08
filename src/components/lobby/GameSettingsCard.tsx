@@ -1,6 +1,7 @@
 // src/components/lobby/GameSettingsCard.tsx
 // Game-specific settings component that appears below AvailableGamesCard
 
+import { useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Label } from "../ui/label";
 import { Switch } from "../ui/switch";
@@ -47,13 +48,16 @@ export default function GameSettingsCard({
     onSettingsChange,
     isLeader,
 }: GameSettingsCardProps) {
+    const handleChange = useCallback(
+        <T,>(key: string, value: T) => {
+            if (!isLeader) return;
+            onSettingsChange({ ...settings, [key]: value });
+        },
+        [isLeader, settings, onSettingsChange]
+    );
+
     if (!gameType) {
         return null;
-    }
-
-    function handleChange<T>(key: string, value: T) {
-        if (!isLeader) return;
-        onSettingsChange({ ...settings, [key]: value });
     }
 
     return (

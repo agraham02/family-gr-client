@@ -40,6 +40,10 @@ export default function TeamAssignmentEditor({
     const isInitialMount = useRef(true);
     const lastEmittedTeams = useRef<string>(JSON.stringify(teams));
 
+    // Stabilize onUpdateTeams reference to prevent unnecessary re-renders
+    const onUpdateTeamsRef = useRef(onUpdateTeams);
+    onUpdateTeamsRef.current = onUpdateTeams;
+
     // Socket/context for randomize
     const { socket, connected } = useWebSocket();
     const { roomId, userId } = useSession();
@@ -67,17 +71,14 @@ export default function TeamAssignmentEditor({
     }
 
     // Emit team changes to server
-    const emitTeamChange = useCallback(
-        (newTeams: string[][]) => {
-            const teamsJson = JSON.stringify(newTeams);
-            // Only emit if teams actually changed
-            if (teamsJson !== lastEmittedTeams.current) {
-                lastEmittedTeams.current = teamsJson;
-                onUpdateTeams(newTeams);
-            }
-        },
-        [onUpdateTeams]
-    );
+    const emitTeamChange = useCallback((newTeams: string[][]) => {
+        const teamsJson = JSON.stringify(newTeams);
+        // Only emit if teams actually changed
+        if (teamsJson !== lastEmittedTeams.current) {
+            lastEmittedTeams.current = teamsJson;
+            onUpdateTeamsRef.current(newTeams);
+        }
+    }, []);
 
     // Handle clicking on a player chip (from unassigned pool)
     function handlePlayerClick(playerId: string) {
