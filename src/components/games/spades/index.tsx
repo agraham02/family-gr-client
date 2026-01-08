@@ -3,7 +3,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/contexts/SessionContext";
 import SpadesGameTable from "./ui/SpadesGameTable";
-import { GameScoreboard } from "@/components/games/shared";
+import { GameScoreboard, GameMenu } from "@/components/games/shared";
 import { SpadesData, SpadesPlayerData, PlayingCard } from "@/types";
 import PlaceBidModal from "./ui/PlaceBidModal";
 import RoundSummaryModal from "./ui/RoundSummaryModal";
@@ -57,6 +57,7 @@ export default function Spades({
     // Assume gameData has phase, players, currentIndex, and bids fields
     const isBiddingPhase = gameData.phase === "bidding";
     const isMyTurn = gameData.playOrder[gameData.currentTurnIndex] === userId;
+    const isLeader = userId === gameData.leaderId;
     const [bid, setBid] = useState<number>(0);
     const [bidModalOpen, setBidModalOpen] = useState(false);
 
@@ -136,6 +137,9 @@ export default function Spades({
                 isMyTurn={isMyTurn}
                 onCardPlay={handleCardPlay}
             />
+
+            {/* Game Menu */}
+            <GameMenu isLeader={isLeader} roomCode={roomId} />
 
             {/* Scoreboard */}
             <GameScoreboard

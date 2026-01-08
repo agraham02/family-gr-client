@@ -3,6 +3,11 @@ export { default as PlayingCard } from "./PlayingCard";
 export type { CardSize } from "./PlayingCard";
 
 export { default as GameScoreboard } from "./GameScoreboard";
+export {
+    default as GameMenu,
+    GameSettingToggle,
+    useGameSetting,
+} from "./GameMenu";
 
 // V2 Components - CSS Grid-based responsive layout
 export { default as GameTable, TableCenter, useGameTable } from "./GameTable";

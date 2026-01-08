@@ -25,7 +25,11 @@ export type BaseRoomEvent = {
 export type RoomEventPayload =
     | (BaseRoomEvent & { event: "sync" })
     | (BaseRoomEvent & { event: "user_joined"; userName: string })
-    | (BaseRoomEvent & { event: "user_left"; userName: string })
+    | (BaseRoomEvent & {
+          event: "user_left";
+          userName: string;
+          voluntary?: boolean;
+      })
     | (BaseRoomEvent & {
           event: "game_started";
           gameId: string;

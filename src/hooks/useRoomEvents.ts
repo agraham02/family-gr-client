@@ -12,7 +12,9 @@ interface UseRoomEventsOptions {
     /** Called when room state is synced */
     onSync?: (roomState: LobbyData) => void;
     /** Called when game starts - return false to prevent default navigation */
-    onGameStarted?: (payload: RoomEventPayload & { event: "game_started" }) => boolean | void;
+    onGameStarted?: (
+        payload: RoomEventPayload & { event: "game_started" }
+    ) => boolean | void;
     /** Called when game is aborted */
     onGameAborted?: (reason: string) => void;
     /** Whether to auto-navigate on game_started (default: true) */
@@ -36,13 +38,13 @@ export function useRoomEvents(options: UseRoomEventsOptions) {
 
     const router = useRouter();
     const { roomId, userId, clearRoomSession } = useSession();
-    
+
     // Use refs for callbacks to avoid effect re-runs when callbacks change
     const onSyncRef = useRef(onSync);
     const onGameStartedRef = useRef(onGameStarted);
     const onGameAbortedRef = useRef(onGameAborted);
     const hasJoinedRef = useRef(false);
-    
+
     // Keep refs up to date
     useEffect(() => {
         onSyncRef.current = onSync;
@@ -69,7 +71,8 @@ export function useRoomEvents(options: UseRoomEventsOptions) {
                     break;
 
                 case "game_started": {
-                    const shouldNavigate = onGameStartedRef.current?.(payload) !== false;
+                    const shouldNavigate =
+                        onGameStartedRef.current?.(payload) !== false;
                     if (shouldNavigate && autoNavigateOnGameStart) {
                         toast.info(`Starting ${payload.gameType} game...`);
                         router.push(`/game/${roomCode}`);
@@ -82,7 +85,13 @@ export function useRoomEvents(options: UseRoomEventsOptions) {
                     break;
 
                 case "user_left":
-                    toast.info(`${payload.userName} left the room`);
+                    if (payload.voluntary) {
+                        toast.info(`${payload.userName} left the game`);
+                    } else {
+                        toast.info(
+                            `${payload.userName} was removed from the room`
+                        );
+                    }
                     break;
 
                 case "room_closed":
@@ -98,7 +107,9 @@ export function useRoomEvents(options: UseRoomEventsOptions) {
                         router.push("/");
                     } else {
                         toast.info(
-                            `${payload.userName || "A player"} was kicked from the room.`
+                            `${
+                                payload.userName || "A player"
+                            } was kicked from the room.`
                         );
                     }
                     break;
@@ -107,7 +118,9 @@ export function useRoomEvents(options: UseRoomEventsOptions) {
                     if (payload.newLeaderId === userId) {
                         toast.info("You are now the room leader!");
                     } else {
-                        toast.info(`${payload.newLeaderName} is now the room leader.`);
+                        toast.info(
+                            `${payload.newLeaderName} is now the room leader.`
+                        );
                     }
                     break;
 
@@ -118,6 +131,8 @@ export function useRoomEvents(options: UseRoomEventsOptions) {
                         );
                     } else if (payload.reason === "not_enough_players") {
                         toast.warning("Game aborted: Not enough players.");
+                    } else if (payload.reason === "leader_ended") {
+                        toast.info("Game ended by the room leader.");
                     } else {
                         toast.info("Game was aborted.");
                     }
@@ -125,15 +140,21 @@ export function useRoomEvents(options: UseRoomEventsOptions) {
                     break;
 
                 case "user_disconnected":
-                    toast.warning(`${payload.userName || "A player"} disconnected.`);
+                    toast.warning(
+                        `${payload.userName || "A player"} disconnected.`
+                    );
                     break;
 
                 case "user_reconnected":
-                    toast.success(`${payload.userName || "A player"} reconnected.`);
+                    toast.success(
+                        `${payload.userName || "A player"} reconnected.`
+                    );
                     break;
 
                 case "game_paused":
-                    toast.warning("Game paused: Waiting for players to reconnect...");
+                    toast.warning(
+                        "Game paused: Waiting for players to reconnect..."
+                    );
                     break;
 
                 case "game_resumed":
