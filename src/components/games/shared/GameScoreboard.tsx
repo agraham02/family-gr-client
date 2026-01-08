@@ -11,7 +11,7 @@ import {
     SheetTitle,
     SheetTrigger,
 } from "@/components/ui/sheet";
-import { ChevronUp, Trophy, Target, Award } from "lucide-react";
+import { ChevronDown, Trophy, Target, Award } from "lucide-react";
 
 interface TeamScore {
     teamId: string;
@@ -72,124 +72,151 @@ function DesktopScoreboard({
     const [isExpanded, setIsExpanded] = useState(false);
 
     return (
-        <motion.div
+        <div
             className={cn(
                 "fixed top-4 right-4 z-50 hidden md:block",
-                "bg-slate-900/90 backdrop-blur-md rounded-xl border border-white/10 shadow-2xl",
-                "min-w-[200px] max-w-[280px]",
                 className
             )}
-            initial={{ x: 100, opacity: 0 }}
-            animate={{ x: 0, opacity: 1 }}
-            transition={{ duration: 0.3 }}
         >
-            {/* Header */}
-            <div
-                className="flex items-center justify-between p-3 border-b border-white/10 cursor-pointer"
-                onClick={() => setIsExpanded(!isExpanded)}
-            >
-                <div className="flex items-center gap-2">
-                    <Trophy className="w-4 h-4 text-amber-400" />
-                    <span className="text-sm font-semibold text-white">
-                        Scoreboard
-                    </span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <span className="text-xs text-white/60">Round {round}</span>
-                    <motion.div
-                        animate={{ rotate: isExpanded ? 180 : 0 }}
-                        transition={{ duration: 0.2 }}
+            <AnimatePresence mode="wait">
+                {!isExpanded ? (
+                    // Collapsed: Minimal pill showing scores
+                    <motion.button
+                        key="collapsed"
+                        className="flex items-center gap-2 px-3 py-1.5 bg-slate-900/80 backdrop-blur-sm rounded-full border border-white/10 shadow-lg cursor-pointer hover:bg-slate-800/90 transition-colors"
+                        onClick={() => setIsExpanded(true)}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.9 }}
+                        transition={{ duration: 0.15 }}
                     >
-                        <ChevronUp className="w-4 h-4 text-white/60" />
-                    </motion.div>
-                </div>
-            </div>
-
-            {/* Team scores - always visible */}
-            <div className="p-3 space-y-2">
-                {teams.map((team, index) => (
-                    <div
-                        key={team.teamId}
-                        className={cn(
-                            "flex items-center justify-between p-2 rounded-lg",
-                            index === 0 ? "bg-blue-500/20" : "bg-red-500/20"
-                        )}
-                    >
-                        <div className="flex flex-col">
-                            <span className="text-sm font-medium text-white">
-                                {team.teamName}
+                        <Trophy className="w-3.5 h-3.5 text-amber-400" />
+                        <div className="flex items-center gap-1.5 text-sm font-medium">
+                            <span className="text-blue-400">
+                                {teams[0]?.score ?? 0}
                             </span>
-                            <span className="text-xs text-white/60">
-                                {team.players.join(" & ")}
+                            <span className="text-white/40">-</span>
+                            <span className="text-red-400">
+                                {teams[1]?.score ?? 0}
                             </span>
                         </div>
-                        <div className="flex flex-col items-end">
-                            <AnimatedScore
-                                score={team.score}
-                                className="text-lg font-bold text-white"
-                            />
-                            {team.bags !== undefined && (
-                                <span className="text-xs text-white/60">
-                                    Bags: {team.bags}
+                        <ChevronDown className="w-3 h-3 text-white/50" />
+                    </motion.button>
+                ) : (
+                    // Expanded: Full scoreboard
+                    <motion.div
+                        key="expanded"
+                        className="bg-slate-900/95 backdrop-blur-md rounded-xl border border-white/10 shadow-2xl min-w-[260px] max-w-[300px]"
+                        initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                        transition={{ duration: 0.2 }}
+                    >
+                        {/* Header */}
+                        <div
+                            className="flex items-center justify-between p-3 border-b border-white/10 cursor-pointer hover:bg-white/5 transition-colors rounded-t-xl"
+                            onClick={() => setIsExpanded(false)}
+                        >
+                            <div className="flex items-center gap-2">
+                                <Trophy className="w-4 h-4 text-amber-400" />
+                                <span className="text-sm font-semibold text-white">
+                                    Scoreboard
                                 </span>
-                            )}
-                        </div>
-                    </div>
-                ))}
-
-                {winTarget && (
-                    <div className="flex items-center justify-center gap-1 text-xs text-white/40 pt-1">
-                        <Target className="w-3 h-3" />
-                        <span>Playing to {winTarget}</span>
-                    </div>
-                )}
-            </div>
-
-            {/* Expanded: Player bids */}
-            <AnimatePresence>
-                {isExpanded && playerBids && playerBids.length > 0 && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                        className="overflow-hidden border-t border-white/10"
-                    >
-                        <div className="p-3 space-y-1">
-                            <div className="flex items-center gap-1 text-xs text-white/60 mb-2">
-                                <Award className="w-3 h-3" />
-                                <span>Bids & Tricks</span>
                             </div>
-                            {playerBids.map((player) => (
-                                <div
-                                    key={player.playerId}
-                                    className="flex items-center justify-between text-sm"
+                            <div className="flex items-center gap-2">
+                                <span className="text-xs text-white/60">
+                                    Round {round}
+                                </span>
+                                <motion.div
+                                    animate={{ rotate: 180 }}
+                                    transition={{ duration: 0.2 }}
                                 >
-                                    <span className="text-white/80 truncate max-w-[120px]">
-                                        {player.playerName}
-                                    </span>
-                                    <div className="flex gap-2">
-                                        <span className="text-white/60">
-                                            Bid: {player.bid ?? "-"}
+                                    <ChevronDown className="w-4 h-4 text-white/60" />
+                                </motion.div>
+                            </div>
+                        </div>
+
+                        {/* Team scores */}
+                        <div className="p-3 space-y-2">
+                            {teams.map((team, index) => (
+                                <div
+                                    key={team.teamId}
+                                    className={cn(
+                                        "flex items-center justify-between p-2.5 rounded-lg",
+                                        index === 0
+                                            ? "bg-blue-500/20"
+                                            : "bg-red-500/20"
+                                    )}
+                                >
+                                    <div className="flex flex-col">
+                                        <span className="text-sm font-medium text-white">
+                                            {team.teamName}
                                         </span>
-                                        <span
-                                            className={cn(
-                                                player.tricksWon >=
-                                                    (player.bid ?? 0)
-                                                    ? "text-emerald-400"
-                                                    : "text-white/60"
+                                        <span className="text-xs text-white/60">
+                                            {team.players.join(" & ")}
+                                        </span>
+                                    </div>
+                                    <div className="flex flex-col items-end">
+                                        <AnimatedScore
+                                            score={team.score}
+                                            className="text-xl font-bold text-white"
+                                        />
+                                        {team.bags !== undefined &&
+                                            team.bags > 0 && (
+                                                <span className="text-xs text-white/50">
+                                                    Bags: {team.bags}
+                                                </span>
                                             )}
-                                        >
-                                            Won: {player.tricksWon}
-                                        </span>
                                     </div>
                                 </div>
                             ))}
+
+                            {winTarget && (
+                                <div className="flex items-center justify-center gap-1 text-xs text-white/40 pt-1">
+                                    <Target className="w-3 h-3" />
+                                    <span>Playing to {winTarget}</span>
+                                </div>
+                            )}
                         </div>
+
+                        {/* Player bids section */}
+                        {playerBids && playerBids.length > 0 && (
+                            <div className="border-t border-white/10 p-3 space-y-1.5">
+                                <div className="flex items-center gap-1 text-xs text-white/60 mb-2">
+                                    <Award className="w-3 h-3" />
+                                    <span>Bids & Tricks</span>
+                                </div>
+                                {playerBids.map((player) => (
+                                    <div
+                                        key={player.playerId}
+                                        className="flex items-center justify-between text-sm"
+                                    >
+                                        <span className="text-white/80 truncate max-w-[120px]">
+                                            {player.playerName}
+                                        </span>
+                                        <div className="flex gap-3 text-xs">
+                                            <span className="text-white/50">
+                                                Bid: {player.bid ?? "-"}
+                                            </span>
+                                            <span
+                                                className={cn(
+                                                    player.tricksWon >=
+                                                        (player.bid ?? 0)
+                                                        ? "text-emerald-400"
+                                                        : "text-white/50"
+                                                )}
+                                            >
+                                                Won: {player.tricksWon}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </motion.div>
                 )}
             </AnimatePresence>
-        </motion.div>
+        </div>
     );
 }
 
