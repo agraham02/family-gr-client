@@ -40,7 +40,7 @@ export function useRoomEvents(options: UseRoomEventsOptions) {
     } = options;
 
     const router = useRouter();
-    const { roomId, userId, clearRoomSession } = useSession();
+    const { roomId, userId, clearRoomSession, clearUserSession } = useSession();
 
     // Use refs for callbacks to avoid effect re-runs when callbacks change
     const onSyncRef = useRef(onSync);
@@ -96,9 +96,7 @@ export function useRoomEvents(options: UseRoomEventsOptions) {
                     if (payload.voluntary) {
                         toast.info(`${payload.userName} left the game`);
                     } else {
-                        toast.info(
-                            `${payload.userName} was removed from the room`
-                        );
+                        toast.info(`${payload.userName} left the room`);
                     }
                     break;
 
@@ -202,24 +200,38 @@ export function useRoomEvents(options: UseRoomEventsOptions) {
         (error: { error: string }) => {
             const errorMessage = error.error || "An error occurred";
 
-            // Handle specific errors
+            // Handle kicked user error - requires new identity
+            if (errorMessage.includes("kicked")) {
+                toast.error(errorMessage);
+                clearUserSession();
+                router.push("/");
+                return;
+            }
+
+            // Handle "not a member" error - just needs to rejoin with same identity
+            // Clearing roomId will trigger the lobby page to call joinRoom again
             if (
                 errorMessage.includes("Room not found") ||
-                errorMessage.includes("not in room")
+                errorMessage.includes("not in room") ||
+                errorMessage.includes("not a member of this room")
             ) {
-                toast.error("Room not found or session expired.");
+                console.log(
+                    "Session expired or not in room - triggering rejoin..."
+                );
                 clearRoomSession();
-                router.push("/");
+                // Don't redirect - let the lobby page's useEffect handle the rejoin
                 return;
             }
 
             toast.error(errorMessage);
         },
-        [clearRoomSession, router]
+        [clearRoomSession, clearUserSession, router]
     );
 
     useEffect(() => {
         if (!roomId || !userId) {
+            // Reset hasJoinedRef when roomId is cleared so we rejoin when it's set again
+            hasJoinedRef.current = false;
             return;
         }
 
@@ -238,8 +250,8 @@ export function useRoomEvents(options: UseRoomEventsOptions) {
         }
         socket.on("already_joined", handleAlreadyJoined);
 
-        // Emit join_room only once per mount
-        // This prevents duplicate syncs from React Strict Mode or re-renders
+        // Emit join_room when roomId/userId change or on initial mount
+        // hasJoinedRef prevents duplicate joins within the same roomId session
         if (!hasJoinedRef.current) {
             if (socket.connected) {
                 console.log("🔗 Emitting join_room (already connected)");

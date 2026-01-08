@@ -23,6 +23,7 @@ interface SessionContextValue {
     initializing: boolean;
     clearSession: () => void;
     clearRoomSession: () => void;
+    clearUserSession: () => void;
 }
 
 const SessionContext = createContext<SessionContextValue | undefined>(
@@ -123,9 +124,16 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         localStorage.removeItem("userName");
     };
 
-    // Clear room-specific session data but preserve userName
+    // Clear room-specific session data but preserve userName and userId
     // Useful when kicked or room is closed - user shouldn't have to re-enter name
     const clearRoomSession = () => {
+        setRoomIdState("");
+        localStorage.removeItem("roomId");
+    };
+
+    // Clear userId and roomId but preserve userName
+    // Useful when user needs a completely fresh identity (e.g., kicked)
+    const clearUserSession = () => {
         setRoomIdState("");
         setUserIdState("");
         localStorage.removeItem("roomId");
@@ -145,6 +153,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
                 initializing,
                 clearSession,
                 clearRoomSession,
+                clearUserSession,
             }}
         >
             {children}
