@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { motion } from "motion/react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -17,11 +17,44 @@ interface PlayerInfoProps {
     isCurrentTurn: boolean;
     isLocalPlayer?: boolean;
     seatPosition: SeatPosition;
+    /**
+     * Spades-specific: Player's bid (deprecated, use customStats instead)
+     * @deprecated Use customStats render prop for game-specific data
+     */
     bid?: number | null;
+    /**
+     * Spades-specific: Tricks won (deprecated, use customStats instead)
+     * @deprecated Use customStats render prop for game-specific data
+     */
     tricksWon?: number;
     teamColor?: string;
     connected?: boolean;
     className?: string;
+    /**
+     * Render prop for game-specific stats display.
+     * Receives the text alignment based on seat position.
+     * Use this instead of bid/tricksWon for game-specific data.
+     *
+     * @example
+     * ```tsx
+     * // Spades
+     * customStats={(textAlign) => (
+     *   <div className="flex gap-1 items-center">
+     *     <Badge>Bid: {bid}</Badge>
+     *     <Badge>Won: {tricksWon}</Badge>
+     *   </div>
+     * )}
+     *
+     * // Dominoes
+     * customStats={(textAlign) => (
+     *   <div className="flex gap-1 items-center">
+     *     <Badge>Tiles: {tilesCount}</Badge>
+     *     <Badge>Score: {score}</Badge>
+     *   </div>
+     * )}
+     * ```
+     */
+    customStats?: (textAlign: "left" | "center" | "right") => ReactNode;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -108,6 +141,7 @@ function PlayerInfo({
     teamColor,
     connected = true,
     className,
+    customStats,
 }: PlayerInfoProps) {
     const layout = getLayoutConfig(seatPosition);
     const initials = getInitials(playerName);
@@ -185,8 +219,11 @@ function PlayerInfo({
                     {isLocalPlayer && " (You)"}
                 </span>
 
-                {/* Bid and tricks */}
-                {bid !== null && bid !== undefined && (
+                {/* Game-specific stats via render prop */}
+                {customStats && customStats(layout.textAlign)}
+
+                {/* Legacy Spades-specific stats (deprecated, use customStats) */}
+                {!customStats && bid !== null && bid !== undefined && (
                     <div className="flex gap-1 items-center">
                         <Badge
                             variant="outline"

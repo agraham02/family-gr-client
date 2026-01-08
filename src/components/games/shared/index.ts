@@ -22,6 +22,11 @@ export { default as CardBadge } from "./CardBadge";
 export { default as PlayerInfo } from "./PlayerInfo";
 export { default as TrickPile } from "./TrickPile";
 
+// Action UI components
+export { default as ActionConfirmationBar } from "./ActionConfirmationBar";
+export { default as DealingOverlay } from "./DealingOverlay";
+export type { DealingItem } from "./DealingOverlay";
+
 // Fullscreen support
 export {
     default as FullscreenPrompt,

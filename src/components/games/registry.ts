@@ -12,6 +12,12 @@ import {
     GameData,
     PlayerData,
 } from "@/types";
+import {
+    generateSpadesMockData,
+    generateDominoesMockData,
+    SpadesMockOptions,
+    DominoesMockOptions,
+} from "./mockData";
 
 /**
  * Base props interface that all game components must implement
@@ -22,7 +28,19 @@ export interface GameComponentProps<
 > {
     gameData: TGameData;
     playerData: TPlayerData;
+    /** Optional flag for debug mode - skips context dependencies */
+    debugMode?: boolean;
 }
+
+/**
+ * Mock data generator function type
+ */
+type MockDataGenerator<TOptions = Record<string, unknown>> = (
+    options?: TOptions
+) => {
+    gameData: GameData;
+    playerData: PlayerData;
+};
 
 /**
  * Registry entry for a game component
@@ -30,6 +48,10 @@ export interface GameComponentProps<
 interface GameRegistryEntry {
     component: ComponentType<GameComponentProps<any, any>>;
     displayName: string;
+    /** Generate mock data for debugging */
+    generateMockData?: MockDataGenerator<any>;
+    /** Default options for mock data generation */
+    defaultMockOptions?: Record<string, unknown>;
 }
 
 /**
@@ -42,12 +64,28 @@ export const GAME_REGISTRY: Record<string, GameRegistryEntry> = {
             GameComponentProps<DominoesData, DominoesPlayerData>
         >,
         displayName: "Dominoes",
+        generateMockData:
+            generateDominoesMockData as MockDataGenerator<DominoesMockOptions>,
+        defaultMockOptions: {
+            playerCount: 4,
+            phase: "playing",
+            round: 1,
+            boardTileCount: 5,
+        },
     },
     spades: {
         component: Spades as ComponentType<
             GameComponentProps<SpadesData, SpadesPlayerData>
         >,
         displayName: "Spades",
+        generateMockData:
+            generateSpadesMockData as MockDataGenerator<SpadesMockOptions>,
+        defaultMockOptions: {
+            playerCount: 4,
+            phase: "playing",
+            round: 1,
+            includeCurrentTrick: true,
+        },
     },
 };
 
@@ -73,4 +111,29 @@ export function isGameTypeSupported(gameType: string): boolean {
  */
 export function getRegisteredGameTypes(): string[] {
     return Object.keys(GAME_REGISTRY);
+}
+
+/**
+ * Get mock data generator for a game type.
+ */
+export function getMockDataGenerator(
+    gameType: string
+): MockDataGenerator | null {
+    return GAME_REGISTRY[gameType]?.generateMockData ?? null;
+}
+
+/**
+ * Get display name for a game type.
+ */
+export function getGameDisplayName(gameType: string): string {
+    return GAME_REGISTRY[gameType]?.displayName ?? gameType;
+}
+
+/**
+ * Get default mock options for a game type.
+ */
+export function getDefaultMockOptions(
+    gameType: string
+): Record<string, unknown> {
+    return GAME_REGISTRY[gameType]?.defaultMockOptions ?? {};
 }

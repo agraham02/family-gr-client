@@ -14,42 +14,15 @@ import {
     EdgeRegion,
     CardHand,
     CardDeck,
-    DealingCard,
     PlayerInfo,
     TrickPile,
     EdgePosition,
     useGameTable,
+    ActionConfirmationBar,
+    DealingOverlay,
+    DealingItem,
 } from "@/components/games/shared";
-import { Button } from "@/components/ui/button";
 import { getUnplayableCardIndices } from "@/lib/spadesValidation";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// DealingCardsOverlay - Uses GameTable context for dimensions
-// ─────────────────────────────────────────────────────────────────────────────
-
-interface DealingCardsOverlayProps {
-    dealingCards: { id: string; targetPosition: EdgePosition; delay: number }[];
-}
-
-function DealingCardsOverlay({ dealingCards }: DealingCardsOverlayProps) {
-    const { dimensions } = useGameTable();
-
-    return (
-        <AnimatePresence>
-            {dealingCards.map((dealCard) => (
-                <DealingCard
-                    key={dealCard.id}
-                    targetPosition={dealCard.targetPosition}
-                    delay={dealCard.delay}
-                    containerDimensions={{
-                        width: dimensions.width,
-                        height: dimensions.height,
-                    }}
-                />
-            ))}
-        </AnimatePresence>
-    );
-}
 
 interface SpadesGameTableProps {
     gameData: SpadesData;
@@ -91,9 +64,7 @@ function SpadesGameTable({
 
     // Deal animation state
     const [isDealing, setIsDealing] = useState(false);
-    const [dealingCards, setDealingCards] = useState<
-        { id: string; targetPosition: EdgePosition; delay: number }[]
-    >([]);
+    const [dealingCards, setDealingCards] = useState<DealingItem[]>([]);
     const [visibleCardCounts, setVisibleCardCounts] = useState<
         Record<string, number>
     >({});
@@ -389,9 +360,7 @@ function SpadesGameTable({
                                 <CardDeck
                                     cardCount={52 - dealingCards.length * 4}
                                 />
-                                <DealingCardsOverlay
-                                    dealingCards={dealingCards}
-                                />
+                                <DealingOverlay dealingItems={dealingCards} />
                             </>
                         )}
 
@@ -459,33 +428,17 @@ function SpadesGameTable({
                 </GameTable>
             </LayoutGroup>
 
-            {/* Play card button */}
-            <AnimatePresence>
-                {selectedCardIndex !== null &&
+            {/* Play card confirmation bar */}
+            <ActionConfirmationBar
+                isVisible={
+                    selectedCardIndex !== null &&
                     isMyTurn &&
-                    gameData.phase === "playing" && (
-                        <motion.div
-                            className="fixed bottom-4 md:bottom-8 left-1/2 -translate-x-1/2 z-50 flex gap-2 md:gap-3"
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: 20 }}
-                        >
-                            <Button
-                                onClick={handlePlayCard}
-                                className="bg-emerald-600 hover:bg-emerald-700 shadow-lg text-xs md:text-sm px-3 py-1.5 md:px-4 md:py-2 h-auto"
-                            >
-                                Play Card
-                            </Button>
-                            <Button
-                                onClick={handleCancelSelection}
-                                variant="outline"
-                                className="shadow-lg text-xs md:text-sm px-3 py-1.5 md:px-4 md:py-2 h-auto"
-                            >
-                                Cancel
-                            </Button>
-                        </motion.div>
-                    )}
-            </AnimatePresence>
+                    gameData.phase === "playing"
+                }
+                onConfirm={handlePlayCard}
+                onCancel={handleCancelSelection}
+                confirmLabel="Play Card"
+            />
         </div>
     );
 }
