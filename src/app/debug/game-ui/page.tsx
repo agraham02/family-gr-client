@@ -57,6 +57,39 @@ type GameType = "spades" | "dominoes";
 // Helper Functions
 // ─────────────────────────────────────────────────────────────────────────────
 
+const SUITS: PlayingCardType["suit"][] = [
+    "Spades",
+    "Hearts",
+    "Diamonds",
+    "Clubs",
+];
+const RANKS = [
+    "2",
+    "3",
+    "4",
+    "5",
+    "6",
+    "7",
+    "8",
+    "9",
+    "10",
+    "J",
+    "Q",
+    "K",
+    "A",
+];
+
+// Generate a random hand of cards for opponents
+function generateOpponentHand(count: number): PlayingCardType[] {
+    const cards: PlayingCardType[] = [];
+    for (let i = 0; i < count; i++) {
+        const suit = SUITS[Math.floor(Math.random() * SUITS.length)];
+        const rank = RANKS[Math.floor(Math.random() * RANKS.length)];
+        cards.push({ suit, rank });
+    }
+    return cards;
+}
+
 function getEdgePosition(index: number, playerCount: number): EdgePosition {
     if (playerCount === 2) {
         return index === 0 ? "bottom" : "top";
@@ -86,6 +119,7 @@ interface SpadesDebugPanelProps {
     onPlayCard: () => void;
     onCancelSelection: () => void;
     isDealing: boolean;
+    dealingItems: DealingItem[];
     showDebugGrid: boolean;
 }
 
@@ -98,6 +132,7 @@ function SpadesDebugPanel({
     onPlayCard,
     onCancelSelection,
     isDealing,
+    dealingItems,
     showDebugGrid,
 }: SpadesDebugPanelProps) {
     const playerCount = playerData.localOrdering.length;
@@ -201,9 +236,23 @@ function SpadesDebugPanel({
 
                     {/* Center Area */}
                     <TableCenter className="flex flex-col items-center gap-4">
-                        {/* Show deck when no cards dealt */}
-                        {playerData.hand.length === 0 && !isDealing && (
-                            <CardDeck cardCount={52} />
+                        {/* Show deck when no cards dealt or during dealing */}
+                        {(playerData.hand.length === 0 || isDealing) && (
+                            <CardDeck
+                                cardCount={
+                                    isDealing
+                                        ? Math.max(
+                                              0,
+                                              52 - dealingItems.length * 4
+                                          )
+                                        : 52
+                                }
+                            />
+                        )}
+
+                        {/* Dealing animation */}
+                        {isDealing && dealingItems.length > 0 && (
+                            <DealingOverlay dealingItems={dealingItems} />
                         )}
 
                         {/* Round indicator */}
@@ -445,6 +494,7 @@ export default function GameUIDebugPage() {
     const [activePlayerIndex, setActivePlayerIndex] = useState(0);
     const [showDebugGrid, setShowDebugGrid] = useState(false);
     const [isDealing, setIsDealing] = useState(false);
+    const [hasDealt, setHasDealt] = useState(false);
 
     // Spades-specific state
     const [spadesGameData, setSpadesGameData] = useState<SpadesData | null>(
@@ -455,6 +505,12 @@ export default function GameUIDebugPage() {
     const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(
         null
     );
+    // Dealing animation items
+    const [dealingItems, setDealingItems] = useState<DealingItem[]>([]);
+    // Track all players' hands for simulation (key: playerId, value: cards)
+    const [allHands, setAllHands] = useState<Record<string, PlayingCardType[]>>(
+        {}
+    );
 
     // Dominoes-specific state
     const [dominoesGameData, setDominoesGameData] =
@@ -463,19 +519,74 @@ export default function GameUIDebugPage() {
         useState<DominoesPlayerData | null>(null);
     const [selectedTile, setSelectedTile] = useState<TileType | null>(null);
 
-    // Reset and regenerate mock data
-    const handleReset = useCallback(() => {
+    // Initialize with undealt state (show deck, empty hands)
+    const initializeUndealt = useCallback(() => {
         setActivePlayerIndex(0);
         setSelectedCardIndex(null);
         setSelectedTile(null);
         setIsDealing(false);
+        setHasDealt(false);
+        setAllHands({});
 
         const generator = getMockDataGenerator(selectedGame);
         if (generator) {
             const { gameData, playerData } = generator({ playerCount });
             if (selectedGame === "spades") {
-                setSpadesGameData(gameData as SpadesData);
-                setSpadesPlayerData(playerData as SpadesPlayerData);
+                // Start with empty hands to show the deck
+                const emptyGameData = {
+                    ...(gameData as SpadesData),
+                    handsCounts: Object.fromEntries(
+                        (gameData as SpadesData).playOrder.map((id) => [id, 0])
+                    ),
+                };
+                const emptyPlayerData = {
+                    ...(playerData as SpadesPlayerData),
+                    hand: [],
+                };
+                setSpadesGameData(emptyGameData);
+                setSpadesPlayerData(emptyPlayerData);
+            } else if (selectedGame === "dominoes") {
+                setDominoesGameData(gameData as DominoesData);
+                setDominoesPlayerData(playerData as DominoesPlayerData);
+                setHasDealt(true); // Dominoes starts dealt for now
+            }
+        }
+    }, [selectedGame, playerCount]);
+
+    // Reset and regenerate mock data with dealt hands
+    const handleReset = useCallback(() => {
+        setActivePlayerIndex(0);
+        setSelectedCardIndex(null);
+        setSelectedTile(null);
+        setIsDealing(false);
+        setHasDealt(true);
+        setAllHands({});
+
+        const generator = getMockDataGenerator(selectedGame);
+        if (generator) {
+            const { gameData, playerData } = generator({ playerCount });
+            if (selectedGame === "spades") {
+                const spadesData = gameData as SpadesData;
+                const spadesPlayer = playerData as SpadesPlayerData;
+
+                // Build allHands from the hands array in mock data
+                const handsMap: Record<string, PlayingCardType[]> = {};
+                spadesData.playOrder.forEach((playerId, idx) => {
+                    // The mock data has `hands` as an array of string arrays
+                    // But we need PlayingCard objects. We'll regenerate.
+                    if (idx === 0) {
+                        handsMap[playerId] = spadesPlayer.hand;
+                    } else {
+                        // Generate cards for opponents based on handsCounts
+                        // Since mock data deals equally, we can infer
+                        handsMap[playerId] = generateOpponentHand(
+                            spadesData.handsCounts[playerId] || 0
+                        );
+                    }
+                });
+                setAllHands(handsMap);
+                setSpadesGameData(spadesData);
+                setSpadesPlayerData(spadesPlayer);
             } else if (selectedGame === "dominoes") {
                 setDominoesGameData(gameData as DominoesData);
                 setDominoesPlayerData(playerData as DominoesPlayerData);
@@ -485,8 +596,8 @@ export default function GameUIDebugPage() {
 
     // Generate mock data on mount and game change
     useEffect(() => {
-        handleReset();
-    }, [selectedGame, playerCount, handleReset]);
+        initializeUndealt();
+    }, [selectedGame, playerCount, initializeUndealt]);
 
     // Spades handlers
     const handleCardSelect = useCallback(
@@ -494,6 +605,7 @@ export default function GameUIDebugPage() {
             if (selectedCardIndex === index) {
                 // Play the card
                 if (spadesPlayerData && spadesGameData) {
+                    const heroPlayerId = spadesPlayerData.localOrdering[0];
                     const newHand = spadesPlayerData.hand.filter(
                         (_, i) => i !== index
                     );
@@ -501,15 +613,29 @@ export default function GameUIDebugPage() {
                         plays: [
                             ...(spadesGameData.currentTrick?.plays || []),
                             {
-                                playerId: spadesPlayerData.localOrdering[0],
+                                playerId: heroPlayerId,
                                 card,
                             },
                         ],
                     };
+
+                    // Update allHands for hero player
+                    setAllHands((prev) => ({
+                        ...prev,
+                        [heroPlayerId]: newHand,
+                    }));
+
+                    // Update hands count
+                    const newHandsCounts = {
+                        ...spadesGameData.handsCounts,
+                        [heroPlayerId]: newHand.length,
+                    };
+
                     setSpadesPlayerData({ ...spadesPlayerData, hand: newHand });
                     setSpadesGameData({
                         ...spadesGameData,
                         currentTrick: newTrick,
+                        handsCounts: newHandsCounts,
                     });
                     setSelectedCardIndex(null);
                     setActivePlayerIndex((prev) => (prev + 1) % playerCount);
@@ -536,9 +662,60 @@ export default function GameUIDebugPage() {
     }, []);
 
     const handleSimulateOpponentPlay = useCallback(() => {
-        // Simulate opponent play by advancing turn
+        if (!spadesGameData || !spadesPlayerData) return;
+
+        const currentPlayerIndex = activePlayerIndex;
+        const currentPlayerId =
+            spadesPlayerData.localOrdering[currentPlayerIndex];
+
+        // Get the current player's hand from allHands
+        const playerHand = allHands[currentPlayerId];
+        if (!playerHand || playerHand.length === 0) {
+            toast.error("No cards to play");
+            setActivePlayerIndex((prev) => (prev + 1) % playerCount);
+            return;
+        }
+
+        // Pick a random card to play
+        const cardIndex = Math.floor(Math.random() * playerHand.length);
+        const card = playerHand[cardIndex];
+
+        // Remove the card from the player's hand
+        const newPlayerHand = playerHand.filter((_, i) => i !== cardIndex);
+        setAllHands((prev) => ({
+            ...prev,
+            [currentPlayerId]: newPlayerHand,
+        }));
+
+        // Update hands count in game data
+        const newHandsCounts = {
+            ...spadesGameData.handsCounts,
+            [currentPlayerId]: newPlayerHand.length,
+        };
+
+        // Add card to trick
+        const newTrick = {
+            plays: [
+                ...(spadesGameData.currentTrick?.plays || []),
+                { playerId: currentPlayerId, card },
+            ],
+        };
+
+        setSpadesGameData({
+            ...spadesGameData,
+            currentTrick: newTrick,
+            handsCounts: newHandsCounts,
+        });
+
+        // Advance turn
         setActivePlayerIndex((prev) => (prev + 1) % playerCount);
-    }, [playerCount]);
+    }, [
+        spadesGameData,
+        spadesPlayerData,
+        allHands,
+        activePlayerIndex,
+        playerCount,
+    ]);
 
     const handleClearTrick = useCallback(() => {
         if (spadesGameData) {
@@ -546,14 +723,131 @@ export default function GameUIDebugPage() {
         }
     }, [spadesGameData]);
 
-    const handleDeal = useCallback(() => {
+    const handleDeal = useCallback(async () => {
+        if (!spadesGameData || !spadesPlayerData) return;
+
         setIsDealing(true);
-        setTimeout(() => {
-            handleReset();
-            setIsDealing(false);
-            toast.success("Cards dealt!");
-        }, 1500);
-    }, [handleReset]);
+        setDealingItems([]);
+
+        // Get the mock data that will be dealt
+        const generator = getMockDataGenerator("spades");
+        if (!generator) return;
+
+        const { gameData: newGameData, playerData: newPlayerData } = generator({
+            playerCount,
+        });
+        const spadesData = newGameData as SpadesData;
+        const spadesPlayer = newPlayerData as SpadesPlayerData;
+        const heroPlayerId = spadesPlayerData.localOrdering[0];
+
+        // Build deal sequence - cycle through players like a real dealer
+        const cardsPerPlayer = Math.floor(52 / playerCount);
+        const dealSequence: {
+            playerId: string;
+            position: EdgePosition;
+            cardIndex: number;
+        }[] = [];
+        const playerCardIndices: Record<string, number> = {};
+        spadesPlayerData.localOrdering.forEach((id) => {
+            playerCardIndices[id] = 0;
+        });
+
+        for (let round = 0; round < cardsPerPlayer; round++) {
+            for (let p = 0; p < playerCount; p++) {
+                const playerId = spadesPlayerData.localOrdering[p];
+                dealSequence.push({
+                    playerId,
+                    position: getEdgePosition(p, playerCount),
+                    cardIndex: playerCardIndices[playerId],
+                });
+                playerCardIndices[playerId]++;
+            }
+        }
+
+        // Track visible cards per player during animation
+        const visibleCounts: Record<string, number> = {};
+        spadesPlayerData.localOrdering.forEach((id) => {
+            visibleCounts[id] = 0;
+        });
+
+        // Track hero's cards as they're dealt (face-up)
+        let heroCardsDealt: PlayingCardType[] = [];
+
+        // Deal cards with animation
+        const CARD_INTERVAL = 25; // Fast dealing
+        for (let i = 0; i < dealSequence.length; i++) {
+            const { playerId, position, cardIndex } = dealSequence[i];
+            const dealingCardId = `deal-${Date.now()}-${i}`;
+
+            // Show flying card
+            setDealingItems([
+                {
+                    id: dealingCardId,
+                    targetPosition: position,
+                    delay: 0,
+                },
+            ]);
+
+            // Wait for animation
+            await new Promise((resolve) =>
+                setTimeout(resolve, CARD_INTERVAL - 8)
+            );
+
+            // Increment visible count for this player
+            visibleCounts[playerId] = (visibleCounts[playerId] || 0) + 1;
+
+            // For hero player, add the actual card (face-up)
+            if (playerId === heroPlayerId) {
+                const card = spadesPlayer.hand[cardIndex];
+                if (card) {
+                    heroCardsDealt = [...heroCardsDealt, card];
+                    // Update hero's hand with actual cards during dealing
+                    setSpadesPlayerData((prev) =>
+                        prev
+                            ? {
+                                  ...prev,
+                                  hand: heroCardsDealt,
+                              }
+                            : prev
+                    );
+                }
+            }
+
+            // Update handsCounts to show cards appearing for opponents
+            setSpadesGameData((prev) =>
+                prev
+                    ? {
+                          ...prev,
+                          handsCounts: { ...visibleCounts },
+                      }
+                    : prev
+            );
+
+            setDealingItems([]);
+
+            // Small gap
+            await new Promise((resolve) => setTimeout(resolve, 8));
+        }
+
+        // Build allHands from the new data
+        const handsMap: Record<string, PlayingCardType[]> = {};
+        spadesData.playOrder.forEach((playerId, idx) => {
+            if (idx === 0) {
+                handsMap[playerId] = spadesPlayer.hand;
+            } else {
+                handsMap[playerId] = generateOpponentHand(
+                    spadesData.handsCounts[playerId] || 0
+                );
+            }
+        });
+
+        // Final state update
+        setAllHands(handsMap);
+        setSpadesGameData(spadesData);
+        setSpadesPlayerData(spadesPlayer);
+        setIsDealing(false);
+        setHasDealt(true);
+    }, [spadesGameData, spadesPlayerData, playerCount]);
 
     // Dominoes handlers
     const handleTileSelect = useCallback((tile: TileType | null) => {
@@ -591,7 +885,6 @@ export default function GameUIDebugPage() {
             setDominoesGameData({ ...dominoesGameData, board: newBoard });
             setSelectedTile(null);
             setActivePlayerIndex((prev) => (prev + 1) % playerCount);
-            toast.success(`Tile placed on ${side}!`);
         },
         [selectedTile, dominoesGameData, dominoesPlayerData, playerCount]
     );
@@ -766,6 +1059,7 @@ export default function GameUIDebugPage() {
                             onPlayCard={handlePlayCard}
                             onCancelSelection={handleCancelSelection}
                             isDealing={isDealing}
+                            dealingItems={dealingItems}
                             showDebugGrid={showDebugGrid}
                         />
                     )}

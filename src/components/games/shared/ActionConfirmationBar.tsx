@@ -76,7 +76,7 @@ function ActionConfirmationBar({
                     </Button>
                     <Button
                         onClick={onCancel}
-                        variant="outline"
+                        variant="secondary"
                         className="shadow-lg text-xs md:text-sm px-3 py-1.5 md:px-4 md:py-2 h-auto"
                     >
                         {cancelLabel}

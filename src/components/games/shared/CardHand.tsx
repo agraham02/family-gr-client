@@ -430,10 +430,9 @@ function CardHand({
             : layoutConfig.opponentCardSize);
 
     // For opponents, show card backs based on cardCount
+    // For local player during dealing (cards empty but cardCount > 0), also show card backs
     const displayCards: (PlayingCardType | null)[] =
-        isLocalPlayer || cards.length > 0
-            ? cards
-            : Array(cardCount || 0).fill(null);
+        cards.length > 0 ? cards : Array(cardCount || 0).fill(null);
 
     const isHorizontal = effectiveOrientation === "horizontal";
 
