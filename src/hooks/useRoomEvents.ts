@@ -17,6 +17,10 @@ interface UseRoomEventsOptions {
     ) => boolean | void;
     /** Called when game is aborted */
     onGameAborted?: (reason: string) => void;
+    /** Called when game is paused */
+    onGamePaused?: (timeoutAt: string) => void;
+    /** Called when game is resumed */
+    onGameResumed?: () => void;
     /** Whether to auto-navigate on game_started (default: true) */
     autoNavigateOnGameStart?: boolean;
     /** Room code for navigation */
@@ -34,6 +38,8 @@ export function useRoomEvents(options: UseRoomEventsOptions) {
         onSync,
         onGameStarted,
         onGameAborted,
+        onGamePaused,
+        onGameResumed,
         autoNavigateOnGameStart = true,
         roomCode,
         isSpectator = false,
@@ -46,6 +52,8 @@ export function useRoomEvents(options: UseRoomEventsOptions) {
     const onSyncRef = useRef(onSync);
     const onGameStartedRef = useRef(onGameStarted);
     const onGameAbortedRef = useRef(onGameAborted);
+    const onGamePausedRef = useRef(onGamePaused);
+    const onGameResumedRef = useRef(onGameResumed);
     const hasJoinedRef = useRef(false);
 
     // Keep refs up to date
@@ -53,6 +61,8 @@ export function useRoomEvents(options: UseRoomEventsOptions) {
         onSyncRef.current = onSync;
         onGameStartedRef.current = onGameStarted;
         onGameAbortedRef.current = onGameAborted;
+        onGamePausedRef.current = onGamePaused;
+        onGameResumedRef.current = onGameResumed;
     });
 
     const handleRoomEvent = useCallback(
@@ -66,16 +76,8 @@ export function useRoomEvents(options: UseRoomEventsOptions) {
 
             switch (payload.event) {
                 case "sync":
-                    // If room is in-game and we're on lobby, redirect to game
-                    // But only if we're an active player, not a spectator
-                    if (
-                        payload.roomState.state === "in-game" &&
-                        !isSpectator &&
-                        !payload.roomState.spectators?.includes(userId || "")
-                    ) {
-                        toast.info("Rejoining active game...");
-                        router.push(`/game/${roomCode}`);
-                    }
+                    // Sync is just for state updates - don't auto-redirect
+                    // Players can use the GameInProgressBanner to join an active game
                     break;
 
                 case "game_started": {
@@ -161,10 +163,12 @@ export function useRoomEvents(options: UseRoomEventsOptions) {
                     toast.warning(
                         "Game paused: Waiting for players to reconnect..."
                     );
+                    onGamePausedRef.current?.(payload.timeoutAt);
                     break;
 
                 case "game_resumed":
                     toast.success("Game resumed!");
+                    onGameResumedRef.current?.();
                     break;
 
                 case "player_moved_to_spectators":
@@ -213,19 +217,33 @@ export function useRoomEvents(options: UseRoomEventsOptions) {
             if (
                 errorMessage.includes("Room not found") ||
                 errorMessage.includes("not in room") ||
-                errorMessage.includes("not a member of this room")
+                errorMessage.includes("not a member of this room") ||
+                errorMessage.includes("doesn't exist")
             ) {
                 console.log(
-                    "Session expired or not in room - triggering rejoin..."
+                    "Session expired, room expired, or not in room - clearing session..."
                 );
                 clearRoomSession();
                 // Don't redirect - let the lobby page's useEffect handle the rejoin
                 return;
             }
 
+            // Handle active game rejection
+            if (
+                errorMessage.includes("Game is in progress") ||
+                errorMessage.includes("game is currently active")
+            ) {
+                toast.error(
+                    "Game is in progress. Wait for it to pause or end before joining."
+                );
+                return;
+            }
+
+            // Generic error - log and toast
+            console.error("Room/game error:", errorMessage);
             toast.error(errorMessage);
         },
-        [clearRoomSession, clearUserSession, router]
+        [clearRoomSession, clearUserSession, router, roomCode]
     );
 
     // Track last roomId to detect actual room changes vs. temporary clears
@@ -237,11 +255,13 @@ export function useRoomEvents(options: UseRoomEventsOptions) {
             // This prevents race conditions during rapid navigation
             if (lastRoomIdRef.current && !roomId) {
                 hasJoinedRef.current = false;
+                lastRoomIdRef.current = null; // Clear the last room ID
             }
             return;
         }
 
         // Track room changes - reset join state when moving to a different room
+        // OR when rejoining after roomId was cleared
         if (lastRoomIdRef.current !== roomId) {
             hasJoinedRef.current = false;
             lastRoomIdRef.current = roomId;

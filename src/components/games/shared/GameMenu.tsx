@@ -106,7 +106,7 @@ export default function GameMenu({
 }: GameMenuProps) {
     const router = useRouter();
     const { socket } = useWebSocket();
-    const { roomId, userId } = useSession();
+    const { roomId, userId, clearRoomSession } = useSession();
 
     const [theme, setTheme] = useState<"light" | "dark">("light");
     const [isFullscreen, setIsFullscreen] = useState(false);
@@ -177,9 +177,11 @@ export default function GameMenu({
         if (socket && roomId && userId) {
             socket.emit("leave_game", { roomId, userId });
         }
+        // Clear room session to force proper rejoin flow when returning
+        clearRoomSession();
         // Navigate to lobby - player leaves game but can rejoin room
         router.push(`/lobby/${roomCode}`);
-    }, [socket, roomId, userId, router, roomCode]);
+    }, [socket, roomId, userId, router, roomCode, clearRoomSession]);
 
     // End game for all (leader only) - returns everyone to lobby
     const handleEndGameForAll = useCallback(() => {
@@ -357,14 +359,14 @@ export default function GameMenu({
                             <span className="sr-only">Game Menu</span>
                         </Button>
                     </SheetTrigger>
-                    <SheetContent side="left" className="w-72">
-                        <SheetHeader>
+                    <SheetContent side="left" className="w-72 flex flex-col">
+                        <SheetHeader className="flex-shrink-0">
                             <SheetTitle className="flex items-center gap-2">
                                 <Settings className="h-5 w-5" />
                                 Game Menu
                             </SheetTitle>
                         </SheetHeader>
-                        <div className="mt-6 flex flex-col gap-1">
+                        <div className="mt-6 flex flex-col gap-1 overflow-y-auto flex-1">
                             {menuItems}
                         </div>
                     </SheetContent>
@@ -497,19 +499,17 @@ export function GameSettingToggle({
     }, [storageKey]);
 
     const toggle = useCallback(() => {
-        setEnabled((prev) => {
-            const next = !prev;
-            localStorage.setItem(storageKey, String(next));
-            // Dispatch custom event for same-tab sync (storage events only fire cross-tab)
-            window.dispatchEvent(
-                new CustomEvent("game-setting-change", {
-                    detail: { key: storageKey, value: next },
-                })
-            );
-            onChange?.(next);
-            return next;
-        });
-    }, [storageKey, onChange]);
+        const next = !enabled;
+        setEnabled(next);
+        localStorage.setItem(storageKey, String(next));
+        // Dispatch custom event for same-tab sync (storage events only fire cross-tab)
+        window.dispatchEvent(
+            new CustomEvent("game-setting-change", {
+                detail: { key: storageKey, value: next },
+            })
+        );
+        onChange?.(next);
+    }, [storageKey, onChange, enabled]);
 
     return (
         <button

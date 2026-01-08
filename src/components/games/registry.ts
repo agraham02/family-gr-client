@@ -37,6 +37,8 @@ export interface GameComponentProps<
     ) => void;
     /** Whether the viewer is a spectator (read-only mode) */
     isSpectator?: boolean;
+    /** Room code for navigation (6-character code) */
+    roomCode?: string;
 }
 
 /**

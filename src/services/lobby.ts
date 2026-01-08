@@ -45,3 +45,26 @@ export async function getAvailableGames(): Promise<{
     }
     return res.json();
 }
+
+/**
+ * Attempt to rejoin a game when navigating directly to a game URL without session data.
+ * Supports both 6-char room codes and full room IDs.
+ * Returns null if rejoin is not possible (e.g., game is active and not paused, room not found).
+ */
+export async function attemptDirectGameRejoin(
+    roomCodeOrId: string,
+    userName: string,
+    userId?: string
+): Promise<CreateAndJoinRoomResponse | null> {
+    try {
+        // Try to join; will fail if game is active and not paused
+        return await joinRoom(userName, roomCodeOrId, userId);
+    } catch (error) {
+        // If join fails, the game is likely active and not paused
+        console.log(
+            "Direct game rejoin failed (game may be active or room not found):",
+            error
+        );
+        return null;
+    }
+}

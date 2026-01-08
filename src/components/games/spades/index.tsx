@@ -18,10 +18,12 @@ export default function Spades({
     gameData,
     playerData,
     dispatchOptimisticAction,
+    roomCode,
 }: {
     gameData: SpadesData;
     playerData: SpadesPlayerData;
     dispatchOptimisticAction?: (type: string, payload: unknown) => void;
+    roomCode?: string;
 }) {
     const { socket, connected } = useWebSocket();
     const { roomId, userId } = useSession();
@@ -147,7 +149,7 @@ export default function Spades({
             />
 
             {/* Game Menu */}
-            <GameMenu isLeader={isLeader} roomCode={roomId}>
+            <GameMenu isLeader={isLeader} roomCode={roomCode || roomId}>
                 <GameSettingToggle
                     storageKey="spades.showHints"
                     label="Show Valid Moves"

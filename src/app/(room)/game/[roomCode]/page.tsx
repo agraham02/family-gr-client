@@ -11,6 +11,7 @@ import { GameData, GameEventPayload, PlayerData, User } from "@/types";
 import { toast } from "sonner";
 import { useRouter, useParams } from "next/navigation";
 import { useRoomEvents } from "@/hooks/useRoomEvents";
+import { useGameDirectURLRecovery } from "@/hooks/useGameDirectURLRecovery";
 import { getSocket } from "@/lib/socket";
 import { useOptimisticGameAction } from "@/hooks/useOptimisticGameAction";
 import { optimisticGameReducer } from "@/lib/gameReducers";
@@ -29,6 +30,16 @@ export default function GamePage() {
     // Track spectators for potential future UI display
     const [, setSpectators] = useState<string[]>([]);
     const router = useRouter();
+
+    // Handle direct game URL recovery (rejoin with name prompt if session lost)
+    const { isRecovering } = useGameDirectURLRecovery({
+        onSessionRestored: () => {
+            // Session is now restored, component will re-render with roomId/userId
+        },
+        onRecoveryFailed: () => {
+            // User redirected to lobby by the hook
+        },
+    });
 
     // Optimistic action handling
     const optimisticAction = useOptimisticGameAction({
@@ -57,9 +68,28 @@ export default function GamePage() {
             setLeaderId(roomState.leaderId);
             // Update spectators list
             setSpectators(roomState.spectators || []);
-            // Check if current user is a spectator
-            if (roomState.spectators?.includes(userId || "")) {
-                setIsSpectator(true);
+            // Check if current user is a spectator (and update the flag bidirectionally)
+            const isUserSpectator =
+                roomState.spectators?.includes(userId || "") ?? false;
+            setIsSpectator(isUserSpectator);
+            // Sync paused state from room (important for when joining a paused game)
+            if (roomState.isPaused !== undefined) {
+                setIsPaused(roomState.isPaused);
+                // Use timeoutAt directly from server if available
+                if (roomState.isPaused && roomState.timeoutAt) {
+                    setTimeoutAt(roomState.timeoutAt);
+                } else if (!roomState.isPaused) {
+                    setTimeoutAt(null);
+                }
+                // Update disconnected players from room state
+                if (roomState.isPaused) {
+                    const disconnected = roomState.users.filter(
+                        (u) =>
+                            u.isConnected === false &&
+                            !roomState.spectators?.includes(u.id)
+                    );
+                    setDisconnectedPlayers(disconnected);
+                }
             }
             // If room is in lobby state, redirect back to lobby
             if (roomState.state === "lobby") {
@@ -72,6 +102,15 @@ export default function GamePage() {
             setTimeoutAt(null);
             setDisconnectedPlayers([]);
             router.push(`/lobby/${roomCode}`);
+        },
+        onGamePaused: (timeoutAt) => {
+            setIsPaused(true);
+            setTimeoutAt(timeoutAt);
+        },
+        onGameResumed: () => {
+            setIsPaused(false);
+            setTimeoutAt(null);
+            setDisconnectedPlayers([]);
         },
     });
 
@@ -216,6 +255,7 @@ export default function GamePage() {
     }
 
     function handleLeaveGame() {
+        emit("leave_game", { roomId, userId });
         router.push(`/lobby/${roomCode}`);
     }
 
@@ -234,7 +274,7 @@ export default function GamePage() {
         }
     }
 
-    if (!gameData) {
+    if (!gameData || isRecovering) {
         return <GameSkeleton />;
     }
 
@@ -294,6 +334,7 @@ export default function GamePage() {
                                     : optimisticAction.dispatch
                             }
                             isSpectator={isSpectator}
+                            roomCode={roomCode}
                         />
                     );
                 }

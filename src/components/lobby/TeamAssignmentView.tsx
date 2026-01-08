@@ -40,14 +40,14 @@ export default function TeamAssignmentView({
                             </div>
                         ) : (
                             <div className="flex flex-col gap-2">
-                                {team.map((playerId) => {
+                                {team.filter(Boolean).map((playerId, idx) => {
                                     const user = users.find(
                                         (u) => u.id === playerId
                                     );
                                     const name = user?.name || "Unknown";
                                     return (
                                         <div
-                                            key={playerId}
+                                            key={playerId || `empty-${idx}`}
                                             className="flex items-center gap-2 px-3 py-2 bg-white/80 dark:bg-zinc-900/50 rounded-lg"
                                         >
                                             <Avatar

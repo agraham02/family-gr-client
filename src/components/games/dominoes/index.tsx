@@ -17,12 +17,14 @@ interface DominoesProps {
     gameData: DominoesData;
     playerData: DominoesPlayerData;
     dispatchOptimisticAction?: (type: string, payload: unknown) => void;
+    roomCode?: string;
 }
 
 export default function Dominoes({
     gameData,
     playerData,
     dispatchOptimisticAction,
+    roomCode,
 }: DominoesProps) {
     const { socket, connected } = useWebSocket();
     const { roomId, userId } = useSession();
@@ -77,7 +79,7 @@ export default function Dominoes({
             />
 
             {/* Game Menu */}
-            <GameMenu isLeader={isLeader} roomCode={roomId}>
+            <GameMenu isLeader={isLeader} roomCode={roomCode || roomId}>
                 <GameSettingToggle
                     storageKey="dominoes.showHints"
                     label="Show Valid Moves"

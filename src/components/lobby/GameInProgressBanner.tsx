@@ -9,12 +9,14 @@ import {
     EyeIcon,
     UsersIcon,
     AlertCircleIcon,
+    XCircleIcon,
 } from "lucide-react";
 import { LobbyData } from "@/types";
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { useSession } from "@/contexts/SessionContext";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import { attemptDirectGameRejoin } from "@/services/lobby";
 
 interface GameInProgressBannerProps {
     lobbyData: LobbyData;
@@ -24,8 +26,11 @@ export default function GameInProgressBanner({
     lobbyData,
 }: GameInProgressBannerProps) {
     const { socket, connected } = useWebSocket();
-    const { userId } = useSession();
+    const { userId, userName } = useSession();
     const router = useRouter();
+
+    // Check if this user is the leader
+    const isLeader = lobbyData.leaderId === userId;
 
     // Check if this user is a spectator
     const isSpectator = lobbyData.spectators?.includes(userId || "");
@@ -40,10 +45,21 @@ export default function GameInProgressBanner({
     );
     const hasOpenSlots = disconnectedPlayers.length > 0;
 
-    function handleJoinGame() {
-        // If already a player, just navigate
+    async function handleJoinGame() {
+        // If already a player, trigger rejoin to ensure server reconnection
         if (isActivePlayer) {
-            router.push(`/game/${lobbyData.code}`);
+            try {
+                // Call rejoin to trigger server-side socket re-registration and resume logic
+                await attemptDirectGameRejoin(
+                    lobbyData.code,
+                    userName || "Player",
+                    userId
+                );
+                router.push(`/game/${lobbyData.code}`);
+            } catch (error) {
+                console.error("Error rejoining game:", error);
+                toast.error("Failed to rejoin game");
+            }
             return;
         }
 
@@ -62,8 +78,25 @@ export default function GameInProgressBanner({
         socket?.emit("spectate_game", {
             roomCode: lobbyData.code,
             userId,
+            userName: userName || "Spectator",
         });
         router.push(`/game/${lobbyData.code}?spectate=true`);
+    }
+
+    function handleEndGame() {
+        if (!isLeader) return;
+
+        const confirmed = confirm(
+            "Are you sure you want to end the game and return all players to the lobby?"
+        );
+
+        if (confirmed) {
+            socket?.emit("abort_game", {
+                roomId: lobbyData.roomId,
+                userId,
+            });
+            toast.info("Ending game...");
+        }
     }
 
     // Don't show if not in-game
@@ -134,6 +167,19 @@ export default function GameInProgressBanner({
                         </div>
 
                         <div className="flex items-center gap-2 w-full sm:w-auto">
+                            {/* End Game button - leader only */}
+                            {isLeader && (
+                                <Button
+                                    variant="destructive"
+                                    onClick={handleEndGame}
+                                    disabled={!connected}
+                                    className="flex-1 sm:flex-none"
+                                >
+                                    <XCircleIcon className="w-4 h-4 mr-2" />
+                                    End Game
+                                </Button>
+                            )}
+
                             {/* Join button - for active players or spectators with open slots */}
                             {(isActivePlayer ||
                                 (isSpectator && hasOpenSlots)) && (

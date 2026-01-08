@@ -30,6 +30,7 @@ export type LobbyData = {
     gameSettings?: GameSettings; // Game-specific settings
     isPaused?: boolean; // Track if game is paused due to disconnections
     pausedAt?: string; // ISO timestamp when game was paused
+    timeoutAt?: string; // ISO timestamp when the pause timeout expires (used for countdown)
     spectators?: string[]; // User IDs of spectators
 };
 
