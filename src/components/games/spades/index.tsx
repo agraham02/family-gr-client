@@ -39,6 +39,21 @@ export default function Spades({
         [dispatchOptimisticAction, socket, connected, userId, roomId]
     );
 
+    // For non-player system actions (CONTINUE_AFTER_TRICK_RESULT, CONTINUE_AFTER_ROUND_SUMMARY)
+    // These don't need optimistic updates and shouldn't block player actions
+    const sendSystemAction = React.useCallback(
+        (type: string, payload: unknown) => {
+            if (!socket || !connected) return;
+            const action = {
+                type,
+                payload,
+                userId,
+            };
+            socket.emit("game_action", { roomId, action });
+        },
+        [socket, connected, userId, roomId]
+    );
+
     // Assume gameData has phase, players, currentIndex, and bids fields
     const isBiddingPhase = gameData.phase === "bidding";
     const isMyTurn = gameData.playOrder[gameData.currentTurnIndex] === userId;
@@ -51,7 +66,7 @@ export default function Spades({
 
     function handleSubmitBid() {
         if (!isMyTurn) return;
-        sendGameAction("PLACE_BID", { amount: bid });
+        sendGameAction("PLACE_BID", { bid: { amount: bid, type: "normal" } });
         setBid(0); // Reset bid after submitting
     }
 
@@ -88,7 +103,7 @@ export default function Spades({
         }
         if (gameData.phase === "trick-result" && userId === gameData.leaderId) {
             const timer = setTimeout(() => {
-                sendGameAction("CONTINUE_AFTER_TRICK_RESULT", {});
+                sendSystemAction("CONTINUE_AFTER_TRICK_RESULT", {});
             }, 3000); // 3 seconds
 
             return () => clearTimeout(timer);
@@ -99,7 +114,7 @@ export default function Spades({
             userId === gameData.leaderId
         ) {
             const timer = setTimeout(() => {
-                sendGameAction("CONTINUE_AFTER_ROUND_SUMMARY", {});
+                sendSystemAction("CONTINUE_AFTER_ROUND_SUMMARY", {});
             }, 10000); // 10 seconds to allow viewing the summary
 
             return () => clearTimeout(timer);
@@ -110,7 +125,7 @@ export default function Spades({
         isBiddingPhase,
         userId,
         gameData.leaderId,
-        sendGameAction,
+        sendSystemAction,
     ]);
 
     return (

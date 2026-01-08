@@ -79,10 +79,6 @@ export default function GamePage() {
                     setDisconnectedPlayers(disconnected);
                     // Request player-specific state
                     emit("get_player_state", { roomId, userId });
-                    // Confirm pending optimistic action if any
-                    if (optimisticAction.hasPendingAction) {
-                        optimisticAction.confirm();
-                    }
                     break;
                 case "player_sync":
                     setPlayerData(payload.playerState);
@@ -126,7 +122,7 @@ export default function GamePage() {
                     break;
             }
         },
-        [emit, roomId, userId, optimisticAction]
+        [emit, roomId, userId]
     );
 
     // Set up game event listeners
@@ -136,14 +132,6 @@ export default function GamePage() {
         const sock = getSocket();
 
         sock.on("game_event", handleGameEvent);
-
-        // Listen for action acknowledgements
-        sock.on("action_ack", ({ actionId, success, error }) => {
-            if (!success && error) {
-                console.error(`Action ${actionId} failed:`, error);
-                optimisticAction.rollback(error);
-            }
-        });
 
         // Request game state when connected
         const requestGameState = () => {
@@ -159,10 +147,37 @@ export default function GamePage() {
 
         return () => {
             sock.off("game_event", handleGameEvent);
-            sock.off("action_ack");
             sock.off("connect", requestGameState);
         };
-    }, [roomId, userId, handleGameEvent, optimisticAction]);
+    }, [roomId, userId, handleGameEvent]);
+
+    // Separate effect for action acknowledgements to avoid re-subscriptions
+    useEffect(() => {
+        const sock = getSocket();
+
+        const handleActionAck = ({
+            actionId,
+            success,
+            error,
+        }: {
+            actionId: string;
+            success: boolean;
+            error?: string;
+        }) => {
+            if (success) {
+                optimisticAction.confirm();
+            } else if (error) {
+                console.error(`Action ${actionId} failed:`, error);
+                optimisticAction.rollback(error);
+            }
+        };
+
+        sock.on("action_ack", handleActionAck);
+
+        return () => {
+            sock.off("action_ack", handleActionAck);
+        };
+    }, [optimisticAction]);
 
     function handleKickPlayer(targetUserId: string) {
         emit("kick_user", { roomId, userId, targetUserId });

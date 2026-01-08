@@ -1,14 +1,7 @@
 "use client";
 
-import React, {
-    useState,
-    useCallback,
-    useMemo,
-    useEffect,
-    useRef,
-} from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { motion, AnimatePresence, LayoutGroup } from "motion/react";
-import { toast } from "sonner";
 import {
     GameTable,
     TableCenter,
@@ -168,7 +161,6 @@ export default function GameUIDebugPage() {
     const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(
         null
     );
-    const [isHeroHandSpread, setIsHeroHandSpread] = useState(false);
     const [hands, setHands] = useState<PlayingCardType[][]>([]);
     const [trickPlays, setTrickPlays] = useState<
         { playerId: string; card: PlayingCardType; playerName: string }[]
@@ -177,36 +169,6 @@ export default function GameUIDebugPage() {
     const [dealingCards, setDealingCards] = useState<
         { id: string; targetPosition: EdgePosition; delay: number }[]
     >([]);
-
-    // Track if we've shown the turn toast
-    const turnToastShownRef = useRef(false);
-
-    // Show toast when it becomes the local player's turn
-    useEffect(() => {
-        if (
-            activePlayerIndex === 0 &&
-            hands.length > 0 &&
-            !isDealing &&
-            !turnToastShownRef.current
-        ) {
-            turnToastShownRef.current = true;
-            toast.info("Your turn! Select a card to play", {
-                id: "your-turn-toast",
-                duration: 4000,
-                dismissible: true,
-            });
-        } else if (activePlayerIndex !== 0) {
-            // Reset when it's not our turn
-            turnToastShownRef.current = false;
-        }
-    }, [activePlayerIndex, hands.length, isDealing]);
-
-    // Handle table click to collapse spread hands
-    const handleTableClick = useCallback(() => {
-        if (isHeroHandSpread) {
-            setIsHeroHandSpread(false);
-        }
-    }, [isHeroHandSpread]);
 
     // Current players based on count
     const players = useMemo(
@@ -300,10 +262,6 @@ export default function GameUIDebugPage() {
     const handleCardClick = useCallback(
         (index: number, card: PlayingCardType) => {
             if (selectedCardIndex === index) {
-                // Clear selection and spread FIRST to prevent visual glitch
-                setSelectedCardIndex(null);
-                setIsHeroHandSpread(false);
-
                 // Play the card
                 const playerName = players[0]?.name || "You";
                 setTrickPlays((prev) => [
@@ -315,6 +273,7 @@ export default function GameUIDebugPage() {
                     newHands[0] = newHands[0].filter((_, i) => i !== index);
                     return newHands;
                 });
+                setSelectedCardIndex(null);
 
                 // Move to next player
                 setActivePlayerIndex((prev) => (prev + 1) % playerCount);
@@ -471,7 +430,6 @@ export default function GameUIDebugPage() {
                         playerCount={playerCount}
                         isDealing={isDealing}
                         showDebugGrid={showDebugGrid}
-                        onTableClick={handleTableClick}
                     >
                         {/* Player Edge Regions */}
                         {players.map((player, index) => {
@@ -527,16 +485,6 @@ export default function GameUIDebugPage() {
                                         }
                                         playerId={player.id}
                                         isDealing={isDealing}
-                                        isSpreadControlled={
-                                            isLocal
-                                                ? isHeroHandSpread
-                                                : undefined
-                                        }
-                                        onSpreadChange={
-                                            isLocal
-                                                ? setIsHeroHandSpread
-                                                : undefined
-                                        }
                                     />
                                 </EdgeRegion>
                             );
