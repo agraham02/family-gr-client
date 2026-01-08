@@ -21,6 +21,7 @@ import {
     useGameTable,
 } from "@/components/games/shared";
 import { Button } from "@/components/ui/button";
+import { getUnplayableCardIndices } from "@/lib/spadesValidation";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // DealingCardsOverlay - Uses GameTable context for dimensions
@@ -55,6 +56,7 @@ interface SpadesGameTableProps {
     playerData: SpadesPlayerData;
     isMyTurn: boolean;
     onCardPlay: (card: PlayingCardType) => void;
+    showHints?: boolean;
 }
 
 // Helper function to map player index to edge position
@@ -80,6 +82,7 @@ function SpadesGameTable({
     playerData,
     isMyTurn,
     onCardPlay,
+    showHints = false,
 }: SpadesGameTableProps) {
     const [selectedCardIndex, setSelectedCardIndex] = useState<number | null>(
         null
@@ -98,6 +101,16 @@ function SpadesGameTable({
     const hasDealtRef = useRef(false);
 
     const playerCount = playerData.localOrdering.length;
+
+    // Calculate which cards are unplayable when hints are enabled
+    const disabledCardIndices =
+        showHints && isMyTurn && gameData.phase === "playing"
+            ? getUnplayableCardIndices(
+                  playerData.hand,
+                  gameData.currentTrick,
+                  gameData.spadesBroken
+              )
+            : [];
 
     // Handle card selection (two-step: select, then confirm)
     const handleCardSelect = useCallback(
@@ -346,6 +359,9 @@ function SpadesGameTable({
                                     }
                                     selectedIndex={
                                         isLocal ? selectedCardIndex : null
+                                    }
+                                    disabledIndices={
+                                        isLocal ? disabledCardIndices : []
                                     }
                                     onCardClick={
                                         isLocal ? handleCardSelect : undefined

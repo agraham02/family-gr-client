@@ -121,7 +121,9 @@ export default function Tile({
             className={cn(
                 "relative rounded-lg transition-all duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
                 onClick && isPlayable && "cursor-pointer hover:scale-105",
-                onClick && !isPlayable && "cursor-not-allowed opacity-50",
+                onClick &&
+                    !isPlayable &&
+                    "cursor-not-allowed grayscale brightness-75",
                 !onClick && "cursor-default",
                 isSelected && "ring-2 ring-yellow-400 scale-110 z-10",
                 className

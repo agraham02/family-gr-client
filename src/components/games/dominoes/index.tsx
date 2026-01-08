@@ -9,8 +9,13 @@ import TileHand from "./ui/TileHand";
 import Board from "./ui/Board";
 import ScoreDisplay from "./ui/ScoreDisplay";
 import RoundSummaryModal from "./ui/RoundSummaryModal";
-import { GameMenu } from "@/components/games/shared";
+import {
+    GameMenu,
+    GameSettingToggle,
+    useGameSetting,
+} from "@/components/games/shared";
 import { cn } from "@/lib/utils";
+import { Lightbulb } from "lucide-react";
 
 interface DominoesProps {
     gameData: DominoesData;
@@ -89,6 +94,7 @@ export default function Dominoes({
     const isMyTurn = currentPlayerId === userId;
     const isLeader = userId === gameData.leaderId;
     const isPlaying = gameData.phase === "playing";
+    const showHints = useGameSetting("dominoes.showHints", false);
     const hand = playerData.hand || [];
     const localOrdering = playerData.localOrdering || gameData.playOrder;
 
@@ -167,7 +173,14 @@ export default function Dominoes({
     return (
         <div className="h-full w-full flex flex-col">
             {/* Game Menu */}
-            <GameMenu isLeader={isLeader} roomCode={roomId} />
+            <GameMenu isLeader={isLeader} roomCode={roomId}>
+                <GameSettingToggle
+                    storageKey="dominoes.showHints"
+                    label="Show Valid Moves"
+                    icon={<Lightbulb className="h-4 w-4" />}
+                    defaultValue={false}
+                />
+            </GameMenu>
 
             {/* Main game area */}
             <div className="flex-1 flex flex-col p-4 gap-4 max-w-6xl mx-auto w-full">
@@ -235,6 +248,7 @@ export default function Dominoes({
                     selectedTile={selectedTile}
                     isMyTurn={isMyTurn && isPlaying}
                     onTileSelect={handleTileSelect}
+                    showHints={showHints}
                 />
 
                 {/* Action buttons */}

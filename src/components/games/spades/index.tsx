@@ -3,10 +3,16 @@ import React, { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/contexts/SessionContext";
 import SpadesGameTable from "./ui/SpadesGameTable";
-import { GameScoreboard, GameMenu } from "@/components/games/shared";
+import {
+    GameScoreboard,
+    GameMenu,
+    GameSettingToggle,
+    useGameSetting,
+} from "@/components/games/shared";
 import { SpadesData, SpadesPlayerData, PlayingCard } from "@/types";
 import PlaceBidModal from "./ui/PlaceBidModal";
 import RoundSummaryModal from "./ui/RoundSummaryModal";
+import { Lightbulb } from "lucide-react";
 
 export default function Spades({
     gameData,
@@ -58,6 +64,7 @@ export default function Spades({
     const isBiddingPhase = gameData.phase === "bidding";
     const isMyTurn = gameData.playOrder[gameData.currentTurnIndex] === userId;
     const isLeader = userId === gameData.leaderId;
+    const showHints = useGameSetting("spades.showHints", false);
     const [bid, setBid] = useState<number>(0);
     const [bidModalOpen, setBidModalOpen] = useState(false);
 
@@ -136,10 +143,18 @@ export default function Spades({
                 playerData={playerData}
                 isMyTurn={isMyTurn}
                 onCardPlay={handleCardPlay}
+                showHints={showHints}
             />
 
             {/* Game Menu */}
-            <GameMenu isLeader={isLeader} roomCode={roomId} />
+            <GameMenu isLeader={isLeader} roomCode={roomId}>
+                <GameSettingToggle
+                    storageKey="spades.showHints"
+                    label="Show Valid Moves"
+                    icon={<Lightbulb className="h-4 w-4" />}
+                    defaultValue={false}
+                />
+            </GameMenu>
 
             {/* Scoreboard */}
             <GameScoreboard

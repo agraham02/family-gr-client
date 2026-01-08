@@ -232,7 +232,7 @@ function CardInHand({
                     isInteractive && !isDisabled && "cursor-pointer",
                     isSelected &&
                         "ring-2 ring-blue-500 ring-offset-2 ring-offset-transparent",
-                    isDisabled && "opacity-50 cursor-not-allowed"
+                    isDisabled && "grayscale brightness-75 cursor-not-allowed"
                 )}
                 style={{
                     width: dimensions.width,

@@ -501,6 +501,12 @@ export function GameSettingToggle({
         const next = !enabled;
         setEnabled(next);
         localStorage.setItem(storageKey, String(next));
+        // Dispatch custom event for same-tab sync (storage events only fire cross-tab)
+        window.dispatchEvent(
+            new CustomEvent("game-setting-change", {
+                detail: { key: storageKey, value: next },
+            })
+        );
         onChange?.(next);
     }, [enabled, storageKey, onChange]);
 
@@ -553,8 +559,24 @@ export function useGameSetting(
             }
         }
 
+        // Listen for custom event (same-tab sync)
+        function handleGameSettingChange(e: Event) {
+            const detail = (e as CustomEvent<{ key: string; value: boolean }>)
+                .detail;
+            if (detail.key === storageKey) {
+                setValue(detail.value);
+            }
+        }
+
         window.addEventListener("storage", handleStorage);
-        return () => window.removeEventListener("storage", handleStorage);
+        window.addEventListener("game-setting-change", handleGameSettingChange);
+        return () => {
+            window.removeEventListener("storage", handleStorage);
+            window.removeEventListener(
+                "game-setting-change",
+                handleGameSettingChange
+            );
+        };
     }, [storageKey, defaultValue]);
 
     return value;
