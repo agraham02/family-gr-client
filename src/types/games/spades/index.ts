@@ -10,6 +10,7 @@ export interface SpadesSettings {
     bagsPenalty: number;
     winTarget: number;
     blindNilEnabled: boolean;
+    turnTimeLimit?: number; // seconds, 0 or undefined means no limit
 }
 
 export type SpadesData = BaseGameData & {
@@ -47,6 +48,7 @@ export type SpadesData = BaseGameData & {
     roundTrickCounts: Record<string, number>;
     roundTeamScores: Record<number, number>; // scores for each team for the round.
     roundScoreBreakdown: Record<number, unknown>;
+    turnStartedAt?: string; // ISO timestamp for turn timer
     // Add more spades fields
 };
 

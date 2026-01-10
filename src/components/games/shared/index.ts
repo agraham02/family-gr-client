@@ -40,3 +40,6 @@ export {
     setFullscreenPreference,
     clearFullscreenPreference,
 } from "./FullscreenPrompt";
+
+// Turn timer for time-limited games
+export { TurnTimer } from "./TurnTimer";

@@ -3,27 +3,31 @@ import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Badge } from "../ui/badge";
 import TeamAssignmentEditor from "./TeamAssignmentEditor";
 import TeamAssignmentView from "./TeamAssignmentView";
-import { GameTypeMetadata, User } from "@/types";
+import { User } from "@/types";
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { useSession } from "@/contexts/SessionContext";
 import { toast } from "sonner";
 import { UsersRoundIcon, LockIcon } from "lucide-react";
 
+interface TeamAssignmentCardProps {
+    users: User[];
+    teams: string[][];
+    numTeams: number;
+    playersPerTeam: number;
+    isPartyLeader: boolean;
+}
+
 export default function TeamAssignmentCard({
     users,
     teams,
-    selectedGameMetadata,
+    numTeams,
+    playersPerTeam,
     isPartyLeader,
-}: {
-    users: User[];
-    teams: string[][];
-    selectedGameMetadata: GameTypeMetadata | undefined;
-    isPartyLeader: boolean;
-}) {
+}: TeamAssignmentCardProps) {
     const { socket, connected } = useWebSocket();
     const { userId, roomId } = useSession();
 
-    if (!selectedGameMetadata) {
+    if (numTeams === 0) {
         return null;
     }
 
@@ -50,18 +54,10 @@ export default function TeamAssignmentCard({
                     <TeamAssignmentEditor
                         users={users}
                         teams={
-                            teams ??
-                            Array.from(
-                                {
-                                    length: selectedGameMetadata.numTeams ?? 0,
-                                },
-                                () => []
-                            )
+                            teams ?? Array.from({ length: numTeams }, () => [])
                         }
-                        numTeams={selectedGameMetadata.numTeams ?? 0}
-                        playersPerTeam={
-                            selectedGameMetadata.playersPerTeam ?? 0
-                        }
+                        numTeams={numTeams}
+                        playersPerTeam={playersPerTeam}
                         onUpdateTeams={(newTeams) => {
                             if (!socket || !connected) {
                                 toast.error("Not connected to the server");
@@ -78,13 +74,7 @@ export default function TeamAssignmentCard({
                     <TeamAssignmentView
                         users={users}
                         teams={
-                            teams ??
-                            Array.from(
-                                {
-                                    length: selectedGameMetadata.numTeams ?? 0,
-                                },
-                                () => []
-                            )
+                            teams ?? Array.from({ length: numTeams }, () => [])
                         }
                     />
                 )}

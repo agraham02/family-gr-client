@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { useParams, useRouter } from "next/navigation";
-import { joinRoom } from "@/services/lobby";
+import { joinRoom, PrivateRoomError } from "@/services/lobby";
 import {
     Dialog,
     DialogContent,
@@ -62,9 +62,12 @@ export default function LobbyPage() {
         autoNavigateOnGameStart: true,
     });
 
+    // Track if we've already attempted to join to prevent infinite loops
+    const hasAttemptedJoin = useRef(false);
+
     // Handle joining room via REST API when we have userName but no roomId
     const handleJoinRoom = useCallback(async () => {
-        if (!userName || !roomCode || isJoining) return;
+        if (!userName || !roomCode) return;
 
         setIsJoining(true);
         try {
@@ -76,24 +79,24 @@ export default function LobbyPage() {
                 setUserId(res.userId);
             }
         } catch (error) {
-            toast.error(
-                "Failed to join room: " +
-                    (error instanceof Error ? error.message : "Unknown error")
-            );
+            if (error instanceof PrivateRoomError) {
+                // Private room - redirect to home page with a message
+                toast.error(
+                    "This room is private. Please request to join from the home page."
+                );
+            } else {
+                toast.error(
+                    "Failed to join room: " +
+                        (error instanceof Error
+                            ? error.message
+                            : "Unknown error")
+                );
+            }
             router.push("/");
         } finally {
             setIsJoining(false);
         }
-    }, [
-        userName,
-        roomCode,
-        userId,
-        roomId,
-        setUserId,
-        setRoomId,
-        router,
-        isJoining,
-    ]);
+    }, [userName, roomCode, userId, roomId, setUserId, setRoomId, router]);
 
     // Show name modal if no userName
     useEffect(() => {
@@ -102,9 +105,16 @@ export default function LobbyPage() {
         }
     }, [userName, initializing]);
 
-    // Join room when we have userName but no roomId
+    // Join room when we have userName but no roomId (only once)
     useEffect(() => {
-        if (!initializing && userName && !roomId && roomCode) {
+        if (
+            !initializing &&
+            userName &&
+            !roomId &&
+            roomCode &&
+            !hasAttemptedJoin.current
+        ) {
+            hasAttemptedJoin.current = true;
             handleJoinRoom();
         }
     }, [initializing, userName, roomId, roomCode, handleJoinRoom]);

@@ -4,12 +4,19 @@ import { Button } from "../ui/button";
 import { Label } from "../ui/label";
 import { Separator } from "../ui/separator";
 import { Slider } from "../ui/slider";
+import { Switch } from "../ui/switch";
 import { ConfirmDialog } from "../ui/confirm-dialog";
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { useSession } from "@/contexts/SessionContext";
 import { toast } from "sonner";
 import { RoomSettings, GameSettings } from "@/types/lobby";
-import { SettingsIcon, PlayIcon, DoorOpenIcon, UsersIcon } from "lucide-react";
+import {
+    SettingsIcon,
+    PlayIcon,
+    DoorOpenIcon,
+    UsersIcon,
+    LockIcon,
+} from "lucide-react";
 
 interface RoomControlsCardProps {
     selectedGame: string | null;
@@ -29,7 +36,10 @@ export default function RoomControlsCard({
 
     const [showCloseConfirm, setShowCloseConfirm] = useState(false);
     const [localMaxPlayers, setLocalMaxPlayers] = useState<number | undefined>(
-        roomSettings?.maxPlayers
+        roomSettings?.maxPlayers ?? undefined
+    );
+    const [localIsPrivate, setLocalIsPrivate] = useState<boolean>(
+        roomSettings?.isPrivate ?? false
     );
 
     function handleCloseRoom() {
@@ -68,6 +78,19 @@ export default function RoomControlsCard({
                 roomId,
                 userId,
                 settings: { maxPlayers: value },
+            });
+        },
+        [socket, connected, roomId, userId, isPartyLeader]
+    );
+
+    const handlePrivateChange = useCallback(
+        (checked: boolean) => {
+            setLocalIsPrivate(checked);
+            if (!socket || !connected || !isPartyLeader) return;
+            socket.emit("update_room_settings", {
+                roomId,
+                userId,
+                settings: { isPrivate: checked },
             });
         },
         [socket, connected, roomId, userId, isPartyLeader]
@@ -122,6 +145,29 @@ export default function RoomControlsCard({
                                 Limit how many players can join (slide to 10 for
                                 unlimited)
                             </p>
+                        </div>
+
+                        {/* Private Room Toggle */}
+                        <div className="flex items-center justify-between pt-2">
+                            <div className="flex items-center gap-2">
+                                <LockIcon className="w-4 h-4 text-zinc-500" />
+                                <div>
+                                    <Label
+                                        htmlFor="isPrivate"
+                                        className="text-sm text-zinc-600 dark:text-zinc-400"
+                                    >
+                                        Private Room
+                                    </Label>
+                                    <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                                        Require approval to join
+                                    </p>
+                                </div>
+                            </div>
+                            <Switch
+                                id="isPrivate"
+                                checked={localIsPrivate}
+                                onCheckedChange={handlePrivateChange}
+                            />
                         </div>
                     </div>
                 )}

@@ -1,6 +1,12 @@
 "use client";
 
-import React, { useState, useCallback, useEffect, useRef } from "react";
+import React, {
+    useState,
+    useCallback,
+    useEffect,
+    useRef,
+    useMemo,
+} from "react";
 import { motion, AnimatePresence, LayoutGroup } from "motion/react";
 import { toast } from "sonner";
 import {
@@ -22,6 +28,7 @@ import {
     DealingItem,
 } from "@/components/games/shared";
 import { getUnplayableCardIndices } from "@/lib/spadesValidation";
+import { useTurnTimer } from "@/hooks";
 
 interface SpadesGameTableProps {
     gameData: SpadesData;
@@ -71,6 +78,25 @@ function SpadesGameTable({
     const hasDealtRef = useRef(false);
 
     const playerCount = playerData.localOrdering.length;
+
+    // Turn timer - calculate remaining time for the current turn player
+    const turnTimeLimit = gameData.settings?.turnTimeLimit ?? 0;
+    const { remainingSeconds } = useTurnTimer(
+        gameData.turnStartedAt,
+        turnTimeLimit
+    );
+
+    // Memoize timer props to prevent unnecessary re-renders
+    // Only create timer props object when timer is actually active
+    const timerPropsCache = useMemo(() => {
+        if (turnTimeLimit <= 0 || isDealing) {
+            return undefined;
+        }
+        return {
+            totalSeconds: turnTimeLimit,
+            remainingSeconds,
+        };
+    }, [turnTimeLimit, remainingSeconds, isDealing]);
 
     // Calculate which cards are unplayable when hints are enabled
     const disabledCardIndices =
@@ -316,6 +342,11 @@ function SpadesGameTable({
                                     bid={bid}
                                     tricksWon={tricksWon}
                                     teamColor={teamColor}
+                                    turnTimer={
+                                        isCurrentTurn && timerPropsCache
+                                            ? timerPropsCache
+                                            : undefined
+                                    }
                                 />
                                 <CardHand
                                     cards={getCardsToShow(playerId, isLocal)}

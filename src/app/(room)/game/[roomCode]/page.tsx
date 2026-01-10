@@ -183,6 +183,27 @@ export default function GamePage() {
 
         sock.on("game_event", handleGameEvent);
 
+        // Handle turn timeout events
+        function handleTurnTimeout(payload: {
+            playerId: string;
+            playerName: string;
+            action: "auto-bid" | "auto-play";
+            gameId: string;
+            timestamp: string;
+        }) {
+            const actionText =
+                payload.action === "auto-bid"
+                    ? "auto-bidding"
+                    : "auto-playing a card";
+            toast.warning(
+                `${payload.playerName} ran out of time - ${actionText}`,
+                {
+                    duration: 3000,
+                }
+            );
+        }
+        sock.on("turn_timeout", handleTurnTimeout);
+
         // Handle spectator state (separate from player state)
         function handleSpectatorState({
             gameState,
@@ -217,6 +238,7 @@ export default function GamePage() {
 
         return () => {
             sock.off("game_event", handleGameEvent);
+            sock.off("turn_timeout", handleTurnTimeout);
             sock.off("spectator_state", handleSpectatorState);
             sock.off("connect", requestGameState);
         };

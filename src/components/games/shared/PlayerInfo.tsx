@@ -7,10 +7,16 @@ import { motion } from "motion/react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { SeatPosition } from "@/hooks";
+import { TurnTimer } from "./TurnTimer";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
+
+interface TurnTimerState {
+    totalSeconds: number;
+    remainingSeconds: number;
+}
 
 interface PlayerInfoProps {
     playerId: string;
@@ -31,6 +37,11 @@ interface PlayerInfoProps {
     teamColor?: string;
     connected?: boolean;
     className?: string;
+    /**
+     * Turn timer state. When provided and isCurrentTurn is true,
+     * displays a circular progress ring around the avatar.
+     */
+    turnTimer?: TurnTimerState;
     /**
      * Render prop for game-specific stats display.
      * Receives the text alignment based on seat position.
@@ -133,6 +144,7 @@ function PlayerInfo({
     teamColor,
     connected = true,
     className,
+    turnTimer,
     customStats,
 }: PlayerInfoProps) {
     const layout = getLayoutConfig(seatPosition);
@@ -142,6 +154,11 @@ function PlayerInfo({
     const avatarSize = isLocalPlayer
         ? "h-10 w-10 md:h-12 md:w-12"
         : "h-8 w-8 md:h-10 md:w-10";
+
+    // Timer size based on avatar size - needs to be larger than avatar to show ring
+    // Hero: 48px avatar + ~12px for ring = 60px
+    // Other: 40px avatar + ~10px for ring = 50px
+    const timerSize = isLocalPlayer ? 60 : 50;
 
     return (
         <motion.div
@@ -155,32 +172,48 @@ function PlayerInfo({
             animate={{ opacity: 1, scale: 1 }}
             transition={{ type: "spring", stiffness: 300, damping: 25 }}
         >
-            {/* Avatar with turn indicator */}
+            {/* Avatar with turn indicator or timer */}
             <div className="relative">
-                <TurnIndicator isActive={isCurrentTurn} />
-                <Avatar
-                    className={cn(
-                        avatarSize,
-                        "border-2 shadow-md transition-all duration-200",
-                        isCurrentTurn ? "border-amber-400" : "border-white/30",
-                        isLocalPlayer &&
-                            "ring-2 ring-blue-500 ring-offset-2 ring-offset-transparent"
-                    )}
-                    style={{
-                        borderColor: teamColor || undefined,
-                    }}
+                {/* Only show pulse indicator if there's no timer */}
+                {!turnTimer && <TurnIndicator isActive={isCurrentTurn} />}
+                <TurnTimer
+                    totalSeconds={turnTimer?.totalSeconds ?? 0}
+                    remainingSeconds={turnTimer?.remainingSeconds ?? 0}
+                    isActive={
+                        isCurrentTurn &&
+                        !!turnTimer &&
+                        turnTimer.totalSeconds > 0
+                    }
+                    size={timerSize}
                 >
-                    <AvatarFallback
+                    <Avatar
                         className={cn(
-                            "text-sm font-bold",
-                            isLocalPlayer
-                                ? "bg-blue-600 text-white"
-                                : "bg-slate-700 text-slate-200"
+                            avatarSize,
+                            "border-2 shadow-md transition-all duration-200",
+                            isCurrentTurn
+                                ? "border-amber-400"
+                                : "border-white/30"
                         )}
+                        style={{
+                            borderColor: teamColor || undefined,
+                            // Use box-shadow for hero indicator instead of ring (doesn't add to bounding box)
+                            boxShadow: isLocalPlayer
+                                ? "0 0 0 2px #3b82f6, 0 0 8px 2px rgba(59, 130, 246, 0.5)"
+                                : undefined,
+                        }}
                     >
-                        {initials}
-                    </AvatarFallback>
-                </Avatar>
+                        <AvatarFallback
+                            className={cn(
+                                "text-sm font-bold",
+                                isLocalPlayer
+                                    ? "bg-blue-600 text-white"
+                                    : "bg-slate-700 text-slate-200"
+                            )}
+                        >
+                            {initials}
+                        </AvatarFallback>
+                    </Avatar>
+                </TurnTimer>
 
                 {/* Disconnected indicator */}
                 {!connected && (

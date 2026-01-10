@@ -42,7 +42,7 @@ export function useRoomEvents(options: UseRoomEventsOptions) {
         onGameResumed,
         autoNavigateOnGameStart = true,
         roomCode,
-        isSpectator = false,
+        isSpectator: _isSpectator = false,
     } = options;
 
     const router = useRouter();
@@ -190,14 +190,7 @@ export function useRoomEvents(options: UseRoomEventsOptions) {
                     break;
             }
         },
-        [
-            userId,
-            roomCode,
-            router,
-            clearRoomSession,
-            autoNavigateOnGameStart,
-            isSpectator,
-        ]
+        [userId, roomCode, router, clearRoomSession, autoNavigateOnGameStart]
     );
 
     const handleError = useCallback(
@@ -243,7 +236,7 @@ export function useRoomEvents(options: UseRoomEventsOptions) {
             console.error("Room/game error:", errorMessage);
             toast.error(errorMessage);
         },
-        [clearRoomSession, clearUserSession, router, roomCode]
+        [clearRoomSession, clearUserSession, router]
     );
 
     // Track last roomId to detect actual room changes vs. temporary clears

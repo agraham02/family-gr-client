@@ -1,8 +1,9 @@
 "use client";
-import { useState } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { createRoom, joinRoom } from "@/services/lobby";
+import { createRoom, joinRoom, PrivateRoomError } from "@/services/lobby";
+import { sendJoinRequest, useJoinRequestResponse } from "@/hooks";
 import {
     Card,
     CardHeader,
@@ -172,6 +173,9 @@ interface JoinRoomCardProps {
     onRoomCodeChange: (v: string) => void;
     onJoin: (name: string, roomCode: string) => Promise<void>;
     loading: boolean;
+    waitingForApproval: boolean;
+    approvalTimeRemaining: number | null;
+    onCancelRequest: () => void;
     nameError: string | null;
     roomCodeError: string | null;
 }
@@ -183,6 +187,9 @@ function JoinRoomCard({
     onRoomCodeChange,
     onJoin,
     loading,
+    waitingForApproval,
+    approvalTimeRemaining,
+    onCancelRequest,
     nameError,
     roomCodeError,
 }: JoinRoomCardProps) {
@@ -191,6 +198,58 @@ function JoinRoomCard({
         name.trim().length > 0 &&
         !roomCodeError &&
         roomCode.length === 6;
+
+    // Show waiting for approval UI
+    if (waitingForApproval) {
+        return (
+            <motion.div
+                initial={{ opacity: 0, y: 30, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{ duration: 0.5, delay: 0.15, ease: "easeOut" }}
+                className="w-full"
+            >
+                <Card className="w-full backdrop-blur-sm bg-white/90 dark:bg-zinc-900/90 border-zinc-200/50 dark:border-zinc-700/50 shadow-xl">
+                    <CardHeader className="text-center pb-2">
+                        <div className="mx-auto mb-3 w-14 h-14 rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/25">
+                            <Loader2Icon className="w-7 h-7 text-white animate-spin" />
+                        </div>
+                        <CardTitle className="text-xl font-bold">
+                            Waiting for Approval
+                        </CardTitle>
+                        <CardDescription className="text-zinc-500 dark:text-zinc-400">
+                            Your request has been sent to the room leader
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex flex-col items-center gap-4 pt-4 pb-6">
+                        <p className="text-sm text-center text-zinc-600 dark:text-zinc-400">
+                            The room{" "}
+                            <span className="font-mono font-semibold">
+                                {roomCode}
+                            </span>{" "}
+                            is private. Please wait for the leader to accept
+                            your request.
+                        </p>
+                        <div className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-400">
+                            <div className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+                            <span>
+                                {approvalTimeRemaining !== null
+                                    ? `Request pending... (${approvalTimeRemaining}s)`
+                                    : "Request pending..."}
+                            </span>
+                        </div>
+                        <Button
+                            variant="outline"
+                            onClick={onCancelRequest}
+                            className="mt-2"
+                        >
+                            Cancel Request
+                        </Button>
+                    </CardContent>
+                </Card>
+            </motion.div>
+        );
+    }
+
     return (
         <motion.div
             initial={{ opacity: 0, y: 30, scale: 0.95 }}
@@ -302,11 +361,80 @@ export default function Home() {
     const [roomCode, setRoomCode] = useState("");
     const [loadingCreate, setLoadingCreate] = useState(false);
     const [loadingJoin, setLoadingJoin] = useState(false);
+    const [waitingForApproval, setWaitingForApproval] = useState(false);
+    const [approvalTimeRemaining, setApprovalTimeRemaining] = useState<
+        number | null
+    >(null);
     const [nameError, setNameError] = useState<string | null>(null);
     const [roomNameError, setRoomNameError] = useState<string | null>(null);
     const [roomCodeError, setRoomCodeError] = useState<string | null>(null);
     const router = useRouter();
     const { setSessionData } = useSession();
+
+    // Memoized callback for join request acceptance
+    const handleJoinRequestAccepted = useCallback(
+        (roomCodeResponse: string, roomId: string) => {
+            setWaitingForApproval(false);
+            // Set session data and navigate
+            const storedUserId = localStorage.getItem("userId") || "";
+            setSessionData({
+                userName: name,
+                userId: storedUserId,
+                roomId,
+            });
+            router.push(`/lobby/${roomCodeResponse}`);
+        },
+        [name, router, setSessionData]
+    );
+
+    // Memoized callback for join request rejection
+    const handleJoinRequestRejected = useCallback(() => {
+        setWaitingForApproval(false);
+    }, []);
+
+    // Handle join request response (when request is accepted/rejected)
+    // Pass waitingForApproval so the hook knows when to connect to socket
+    useJoinRequestResponse(
+        handleJoinRequestAccepted,
+        handleJoinRequestRejected,
+        waitingForApproval
+    );
+
+    // Handle join request timeout (1 minute)
+    useEffect(() => {
+        if (!waitingForApproval) {
+            setApprovalTimeRemaining(null);
+            return;
+        }
+
+        // Set initial countdown time (1 minute = 60 seconds)
+        setApprovalTimeRemaining(60);
+
+        // Update countdown every second
+        const countdownInterval = setInterval(() => {
+            setApprovalTimeRemaining((prev) => {
+                if (prev === null || prev <= 1) {
+                    clearInterval(countdownInterval);
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+
+        // Timeout after 1 minute
+        const timeoutTimer = setTimeout(() => {
+            setWaitingForApproval(false);
+            setApprovalTimeRemaining(null);
+            toast.error(
+                "Join request timed out. The room leader did not respond."
+            );
+        }, 60 * 1000); // 1 minute
+
+        return () => {
+            clearInterval(countdownInterval);
+            clearTimeout(timeoutTimer);
+        };
+    }, [waitingForApproval]);
 
     // Real-time validation handlers
     function handleNameChange(value: string) {
@@ -397,19 +525,44 @@ export default function Home() {
         setLoadingJoin(true);
         // Pass existing userId from localStorage to maintain identity (important for kick enforcement)
         const existingUserId = localStorage.getItem("userId") || undefined;
-        await toast.promise(joinRoom(name, roomCode, existingUserId), {
-            loading: "Joining room...",
-            success: (res) => {
-                handleSuccess(res, name);
-                return "Joined room successfully!";
-            },
-            error: (err) => {
+
+        try {
+            const res = await joinRoom(name, roomCode, existingUserId);
+            handleSuccess(res, name);
+            toast.success("Joined room successfully!");
+        } catch (err) {
+            if (err instanceof PrivateRoomError) {
+                // Room is private - send a join request
+                const requesterId = existingUserId || crypto.randomUUID();
+                // Store the userId for when the request is accepted
+                if (!existingUserId) {
+                    localStorage.setItem("userId", requesterId);
+                }
+
+                const result = await sendJoinRequest(
+                    roomCode,
+                    requesterId,
+                    name
+                );
+                if (result.success) {
+                    setWaitingForApproval(true);
+                    toast.info(
+                        "This room is private. Your request has been sent to the room leader.",
+                        {
+                            duration: 10000,
+                        }
+                    );
+                } else {
+                    toast.error(result.error || "Failed to send join request");
+                }
+            } else {
                 let message = "Unknown error";
                 if (err instanceof Error) message = err.message;
-                return `Error Joining Room: ${message}`;
-            },
-        });
-        setLoadingJoin(false);
+                toast.error(`Error Joining Room: ${message}`);
+            }
+        } finally {
+            setLoadingJoin(false);
+        }
     }
 
     return (
@@ -459,7 +612,7 @@ export default function Home() {
             </div>
 
             {/* Content */}
-            <div className="relative z-10 flex flex-col items-center px-4 py-12 md:py-16">
+            <div className="relative z-10 flex w-full flex-col items-center px-4 py-12 md:py-16">
                 {/* Hero Section */}
                 <motion.div
                     initial={{ opacity: 0, y: -20 }}
@@ -500,13 +653,8 @@ export default function Home() {
                     </motion.p>
                 </motion.div>
 
-                {/* Divider with "or" */}
-                <div className="hidden md:flex items-center gap-8 w-full max-w-3xl mb-0">
-                    <Separator className="flex-1 bg-zinc-300 dark:bg-zinc-700" />
-                </div>
-
                 {/* Cards Container */}
-                <div className="flex flex-col md:flex-row gap-6 md:gap-8 w-full max-w-3xl px-2">
+                <div className="flex flex-col md:flex-row gap-6 w-full max-w-5xl px-2">
                     <div className="flex-1 min-w-0">
                         <CreateRoomCard
                             name={name}
@@ -518,6 +666,15 @@ export default function Home() {
                             nameError={nameError}
                             roomNameError={roomNameError}
                         />
+                    </div>
+
+                    {/* Divider with "or" */}
+                    <div className="hidden md:flex items-center gap-3 w-20 mb-0">
+                        <Separator className="flex-1 bg-zinc-300 dark:bg-zinc-700" />
+                        <span className="text-sm font-medium text-zinc-400 dark:text-zinc-500">
+                            or
+                        </span>
+                        <Separator className="flex-1 bg-zinc-300 dark:bg-zinc-700" />
                     </div>
 
                     {/* Mobile divider */}
@@ -537,6 +694,13 @@ export default function Home() {
                             onRoomCodeChange={handleRoomCodeChange}
                             onJoin={handleJoinRoom}
                             loading={loadingJoin}
+                            waitingForApproval={waitingForApproval}
+                            approvalTimeRemaining={approvalTimeRemaining}
+                            onCancelRequest={() => {
+                                setWaitingForApproval(false);
+                                setApprovalTimeRemaining(null);
+                                toast.info("Join request cancelled");
+                            }}
                             nameError={nameError}
                             roomCodeError={roomCodeError}
                         />

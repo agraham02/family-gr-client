@@ -2,6 +2,51 @@ import { CreateAndJoinRoomResponse, GameTypeMetadata } from "@/types";
 import { API_BASE } from ".";
 import { fetchWithRetry, FetchError } from "@/lib/fetchWithRetry";
 
+// Custom error for private room access
+export class PrivateRoomError extends Error {
+    constructor(
+        message: string = "This room is private. Please request to join."
+    ) {
+        super(message);
+        this.name = "PrivateRoomError";
+    }
+}
+
+/**
+ * Helper to extract error message from response.
+ * Server returns JSON: { error: "message", code?: "ERROR_CODE" }
+ * Logs parsing failures for debugging.
+ */
+async function extractErrorMessage(
+    res: Response,
+    fallback: string
+): Promise<{ message: string; code?: string }> {
+    try {
+        const data = await res.json();
+        return {
+            message: data.error || fallback,
+            code: data.code,
+        };
+    } catch (jsonError) {
+        // If JSON parsing fails, try text
+        console.warn(
+            `Failed to parse error response as JSON (status ${res.status}):`,
+            jsonError
+        );
+        try {
+            const text = await res.text();
+            if (text) {
+                console.warn(`Error response text: ${text}`);
+                return { message: text };
+            }
+            return { message: fallback };
+        } catch (textError) {
+            console.warn("Failed to read error response as text:", textError);
+            return { message: fallback };
+        }
+    }
+}
+
 export async function createRoom(
     userName: string,
     roomName: string
@@ -12,8 +57,11 @@ export async function createRoom(
         body: JSON.stringify({ userName, roomName }),
     });
     if (!res.ok) {
-        const errorText = await res.text().catch(() => "Failed to create room");
-        throw new FetchError(errorText, res.status, res.statusText);
+        const { message } = await extractErrorMessage(
+            res,
+            "Failed to create room"
+        );
+        throw new FetchError(message, res.status, res.statusText);
     }
     return res.json();
 }
@@ -29,8 +77,17 @@ export async function joinRoom(
         body: JSON.stringify({ userName, roomCode, userId }),
     });
     if (!res.ok) {
-        const errorText = await res.text().catch(() => "Failed to join room");
-        throw new FetchError(errorText, res.status, res.statusText);
+        const { message, code } = await extractErrorMessage(
+            res,
+            "Failed to join room"
+        );
+
+        // Check for private room error (403 with PRIVATE_ROOM code)
+        if (res.status === 403 && code === "PRIVATE_ROOM") {
+            throw new PrivateRoomError();
+        }
+
+        throw new FetchError(message, res.status, res.statusText);
     }
     return res.json();
 }
@@ -40,8 +97,11 @@ export async function getAvailableGames(): Promise<{
 }> {
     const res = await fetchWithRetry(`${API_BASE}/games`);
     if (!res.ok) {
-        const errorText = await res.text().catch(() => "Failed to fetch games");
-        throw new FetchError(errorText, res.status, res.statusText);
+        const { message } = await extractErrorMessage(
+            res,
+            "Failed to fetch games"
+        );
+        throw new FetchError(message, res.status, res.statusText);
     }
     return res.json();
 }
