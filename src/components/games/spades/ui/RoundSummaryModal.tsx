@@ -39,10 +39,14 @@ export default function RoundSummaryModal({
 
     // Determine winning team for finished phase
     const winningTeamId = isFinished
-        ? Object.entries(gameData.teams).reduce((maxTeam, [teamId, team]) => {
-              const maxScore = gameData.teams[maxTeam]?.score ?? 0;
-              return team.score > maxScore ? teamId : maxTeam;
-          }, "0")
+        ? Object.entries(gameData.teams).reduce(
+              (maxTeam, [teamId, team]) => {
+                  if (!maxTeam) return teamId;
+                  const maxScore = gameData.teams[maxTeam]?.score ?? 0;
+                  return team.score > maxScore ? teamId : maxTeam;
+              },
+              null as string | null
+          )
         : null;
 
     const winningTeam = winningTeamId ? gameData.teams[winningTeamId] : null;
@@ -98,7 +102,9 @@ export default function RoundSummaryModal({
                     )}
 
                     {Object.entries(gameData.teams)
-                        .sort(([, a], [, b]) => b.score - a.score) // Sort by score descending for finished phase
+                        .sort(([, a], [, b]) =>
+                            isFinished ? b.score - a.score : 0
+                        ) // Only sort by score for finished phase
                         .map(([teamId, team], index) => {
                             const roundScore =
                                 gameData.roundTeamScores[Number(teamId)] ?? 0;
