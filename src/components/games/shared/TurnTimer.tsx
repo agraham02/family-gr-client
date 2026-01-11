@@ -1,7 +1,7 @@
 // src/components/games/shared/TurnTimer.tsx
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 interface TurnTimerProps {
@@ -74,6 +74,16 @@ export function TurnTimer({
     // Invert: start full (0 offset) and drain to empty (full circumference offset)
     const strokeDashoffset = circumference * ((100 - percentage) / 100);
 
+    // Skip transition on initial render to prevent animation from 0% to current value
+    const [hasInitialized, setHasInitialized] = useState(false);
+    useEffect(() => {
+        // Use requestAnimationFrame to ensure the initial render has painted
+        const frame = requestAnimationFrame(() => {
+            setHasInitialized(true);
+        });
+        return () => cancelAnimationFrame(frame);
+    }, []);
+
     if (!isActive) {
         // Just render children without timer ring when inactive
         return (
@@ -126,7 +136,11 @@ export function TurnTimer({
                     strokeLinecap="round"
                     strokeDasharray={circumference}
                     strokeDashoffset={strokeDashoffset}
-                    className="transition-all duration-1000 ease-linear"
+                    className={
+                        hasInitialized
+                            ? "transition-all duration-1000 ease-linear"
+                            : ""
+                    }
                 />
             </svg>
             {/* Content (avatar, etc.) */}

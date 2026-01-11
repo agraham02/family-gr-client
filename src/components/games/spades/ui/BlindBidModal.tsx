@@ -1,5 +1,10 @@
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogTitle,
+} from "@/components/ui/dialog";
 import { motion, AnimatePresence } from "motion/react";
 import { Eye, EyeOff, Zap, Ban, Minus, Plus } from "lucide-react";
 import React, { useState } from "react";
@@ -38,23 +43,16 @@ export default function BlindBidModal({
 
     return (
         <Dialog open={isOpen} onOpenChange={handleClose}>
-            <DialogContent
-                aria-labelledby="blind-bid-title"
-                aria-describedby="blind-bid-desc"
-                className="flex flex-col items-center gap-4 sm:gap-6 max-w-[95vw] sm:max-w-md max-h-[85vh] sm:max-h-[90vh] overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-amber-500/30 text-white p-4 sm:p-6 shadow-2xl"
-            >
-                <DialogTitle
-                    id="blind-bid-title"
-                    className="flex items-center gap-2 text-xl sm:text-2xl font-bold text-amber-400 text-center"
-                >
+            <DialogContent className="flex flex-col items-center gap-4 sm:gap-6 max-w-[95vw] sm:max-w-md max-h-[85vh] sm:max-h-[90vh] overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-amber-500/30 text-white p-4 sm:p-6 shadow-2xl">
+                <DialogTitle className="flex items-center gap-2 text-xl sm:text-2xl font-bold text-amber-400 text-center">
                     <Zap className="w-6 h-6 sm:w-7 sm:h-7 text-amber-400 animate-pulse" />
                     Blind Bid Opportunity
                 </DialogTitle>
 
-                <p id="blind-bid-desc" className="sr-only">
+                <DialogDescription className="sr-only">
                     Choose to bid without seeing your cards for double points,
                     or decline to see your cards
-                </p>
+                </DialogDescription>
 
                 <div className="w-full space-y-4">
                     {/* Team Score Context */}

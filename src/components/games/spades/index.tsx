@@ -105,7 +105,7 @@ export default function Spades({
     const isMyTurn = gameData.playOrder[gameData.currentTurnIndex] === userId;
     const isLeader = userId === gameData.leaderId;
     const showHints = useGameSetting("spades.showHints", false);
-    const [bid, setBid] = useState<number>(0);
+    const [bid, setBid] = useState<number>(1);
     const [bidModalOpen, setBidModalOpen] = useState(false);
     const [blindBidModalOpen, setBlindBidModalOpen] = useState(false);
     const [hasSeenCards, setHasSeenCards] = useState(false);
@@ -173,7 +173,8 @@ export default function Spades({
     }, [isMyTurn, isBiddingPhase, hasSeenCards, canShowBlindBid]);
 
     function handleBidChange(delta: number) {
-        setBid((prev: number) => Math.max(0, Math.min(13, prev + delta)));
+        // Minimum bid is 1 (0 requires Nil bid)
+        setBid((prev: number) => Math.max(1, Math.min(13, prev + delta)));
     }
 
     function handleSubmitBid(isNil: boolean) {
@@ -190,7 +191,7 @@ export default function Spades({
             isBlind: false,
         };
         sendGameAction("PLACE_BID", { bid: bidData });
-        setBid(0);
+        setBid(1);
 
         // Reset loading state after delay
         setTimeout(() => setIsSubmitting(false), 500);
