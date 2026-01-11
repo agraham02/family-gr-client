@@ -27,6 +27,7 @@ import {
     DealingOverlay,
     DealingItem,
 } from "@/components/games/shared";
+import { Badge } from "@/components/ui/badge";
 import { getUnplayableCardIndices } from "@/lib/spadesValidation";
 import { useTurnTimer } from "@/hooks";
 
@@ -307,7 +308,10 @@ function SpadesGameTable({
                         const isCurrentTurn =
                             gameData.playOrder[gameData.currentTurnIndex] ===
                             playerId;
-                        const bid = gameData.bids[playerId]?.amount ?? null;
+                        const bidData = gameData.bids[playerId];
+                        const bid = bidData?.amount ?? null;
+                        const bidType = bidData?.type;
+                        const isBlind = bidData?.isBlind;
                         const tricksWon =
                             gameData.roundTrickCounts?.[playerId] ?? 0;
                         const edgePosition = getEdgePosition(
@@ -339,14 +343,55 @@ function SpadesGameTable({
                                     isCurrentTurn={isCurrentTurn && !isDealing}
                                     isLocalPlayer={isLocal}
                                     seatPosition={edgePosition}
-                                    bid={bid}
-                                    tricksWon={tricksWon}
                                     teamColor={teamColor}
                                     turnTimer={
                                         isCurrentTurn && timerPropsCache
                                             ? timerPropsCache
                                             : undefined
                                     }
+                                    customStats={(textAlign) => (
+                                        <div className="flex gap-1 items-center">
+                                            {bid !== null && (
+                                                <>
+                                                    <Badge
+                                                        variant="outline"
+                                                        className="text-[10px] px-1.5 py-0 bg-black/30 border-white/20 text-white/80"
+                                                    >
+                                                        Bid: {bid}
+                                                    </Badge>
+                                                    {bidType === "nil" && (
+                                                        <Badge className="text-[10px] px-1.5 py-0 bg-purple-600 text-white border-purple-400">
+                                                            NIL
+                                                        </Badge>
+                                                    )}
+                                                    {bidType === "blind" && (
+                                                        <Badge className="text-[10px] px-1.5 py-0 bg-amber-600 text-white border-amber-400">
+                                                            BLIND
+                                                        </Badge>
+                                                    )}
+                                                    {bidType ===
+                                                        "blind-nil" && (
+                                                        <Badge className="text-[10px] px-1.5 py-0 bg-red-600 text-white border-red-400 animate-pulse">
+                                                            BLIND NIL
+                                                        </Badge>
+                                                    )}
+                                                </>
+                                            )}
+                                            {tricksWon !== undefined &&
+                                                bid !== null && (
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={`text-[10px] px-1.5 py-0 border-white/20 ${
+                                                            tricksWon >= bid
+                                                                ? "bg-green-500/30 text-green-300"
+                                                                : "bg-black/30 text-white/80"
+                                                        }`}
+                                                    >
+                                                        Won: {tricksWon}
+                                                    </Badge>
+                                                )}
+                                        </div>
+                                    )}
                                 />
                                 <CardHand
                                     cards={getCardsToShow(playerId, isLocal)}

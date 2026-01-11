@@ -96,9 +96,13 @@ function optimisticSpadesPlayCard(
 function optimisticSpadesPlaceBid(
     gameData: SpadesData,
     playerData: SpadesPlayerData,
-    action: { type: string; payload: { amount: number }; userId: string }
+    action: {
+        type: string;
+        payload: { bid: { amount: number; type: string; isBlind: boolean } };
+        userId: string;
+    }
 ): OptimisticUpdateResult | null {
-    const { amount } = action.payload;
+    const { bid } = action.payload;
     const { userId } = action;
 
     // Validate it's the player's turn
@@ -109,7 +113,7 @@ function optimisticSpadesPlaceBid(
 
     // Update bids
     const newBids = { ...gameData.bids };
-    newBids[userId] = { amount };
+    newBids[userId] = bid;
 
     // Update turn index
     const newTurnIndex =
@@ -286,7 +290,13 @@ export function optimisticGameReducer(
                     spadesPlayerData,
                     action as {
                         type: string;
-                        payload: { amount: number };
+                        payload: {
+                            bid: {
+                                amount: number;
+                                type: string;
+                                isBlind: boolean;
+                            };
+                        };
                         userId: string;
                     }
                 );

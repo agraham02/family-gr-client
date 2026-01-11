@@ -1,8 +1,8 @@
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { motion } from "motion/react";
-import { Minus, Plus, Target } from "lucide-react";
-import React from "react";
+import { Minus, Plus, Target, Ban } from "lucide-react";
+import React, { useState } from "react";
 
 export default function PlaceBidModal({
     bid,
@@ -10,13 +10,16 @@ export default function PlaceBidModal({
     setBidModalOpen,
     handleBidChange,
     handleSubmitBid,
+    allowNil,
 }: {
     bid: number;
     bidModalOpen: boolean;
     setBidModalOpen: React.Dispatch<React.SetStateAction<boolean>>;
     handleBidChange: (delta: number) => void;
-    handleSubmitBid: () => void;
+    handleSubmitBid: (isNil: boolean) => void;
+    allowNil: boolean;
 }) {
+    const [isNilBid, setIsNilBid] = useState(false);
     return (
         <Dialog open={bidModalOpen} onOpenChange={setBidModalOpen}>
             <DialogContent className="flex flex-col items-center gap-3 sm:gap-6 max-w-sm max-h-[90vh] overflow-y-auto bg-slate-900 border-white/10 text-white p-4 sm:p-6">
@@ -29,7 +32,34 @@ export default function PlaceBidModal({
                     How many tricks do you think you can win?
                 </p>
 
-                <div className="flex items-center gap-4 sm:gap-6">
+                {/* Nil Bid Toggle */}
+                {allowNil && (
+                    <Button
+                        variant={isNilBid ? "default" : "outline"}
+                        onClick={() => {
+                            setIsNilBid(!isNilBid);
+                            if (!isNilBid) {
+                                handleBidChange(0 - bid); // Set bid to 0
+                            }
+                        }}
+                        className={`w-full h-10 sm:h-12 text-sm sm:text-base font-semibold rounded-xl transition-all ${
+                            isNilBid
+                                ? "bg-purple-600 hover:bg-purple-700 text-white border-purple-400"
+                                : "border-purple-400/50 text-purple-300 hover:text-purple-200 hover:bg-purple-500/20"
+                        }`}
+                    >
+                        <Ban className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
+                        {isNilBid
+                            ? "Nil Bid Selected"
+                            : "Bid Nil (Zero Tricks)"}
+                    </Button>
+                )}
+
+                <div
+                    className={`flex items-center gap-4 sm:gap-6 ${
+                        isNilBid ? "opacity-50 pointer-events-none" : ""
+                    }`}
+                >
                     <Button
                         size="icon"
                         variant="outline"
@@ -92,11 +122,12 @@ export default function PlaceBidModal({
                 <Button
                     className="mt-1 sm:mt-2 w-full h-10 sm:h-12 text-sm sm:text-base font-semibold rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-lg"
                     onClick={() => {
-                        handleSubmitBid();
+                        handleSubmitBid(isNilBid);
                         setBidModalOpen(false);
+                        setIsNilBid(false); // Reset for next round
                     }}
                 >
-                    Submit Bid
+                    Submit {isNilBid ? "Nil " : ""}Bid
                 </Button>
 
                 <Button
