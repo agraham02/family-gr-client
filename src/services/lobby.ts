@@ -47,6 +47,38 @@ async function extractErrorMessage(
     }
 }
 
+/**
+ * Get room ID from room code.
+ * Returns null if room not found.
+ */
+export async function getRoomIdByCode(
+    roomCode: string
+): Promise<string | null> {
+    try {
+        const res = await fetchWithRetry(
+            `${API_BASE}/rooms/code/${roomCode.toUpperCase()}`,
+            {
+                method: "GET",
+            }
+        );
+        if (res.status === 404) {
+            return null;
+        }
+        if (!res.ok) {
+            const { message } = await extractErrorMessage(
+                res,
+                "Failed to lookup room code"
+            );
+            throw new Error(message);
+        }
+        const data = await res.json();
+        return data.roomId;
+    } catch (err) {
+        console.error("Error looking up room code:", err);
+        return null;
+    }
+}
+
 export async function createRoom(
     userName: string,
     roomName: string

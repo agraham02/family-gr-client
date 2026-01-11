@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { useParams, useRouter } from "next/navigation";
-import { joinRoom, PrivateRoomError } from "@/services/lobby";
+import { joinRoom, PrivateRoomError, getRoomIdByCode } from "@/services/lobby";
 import {
     Dialog,
     DialogContent,
@@ -45,6 +45,7 @@ export default function LobbyPage() {
         setUserId,
         setUserName,
         initializing,
+        clearRoomSession,
     } = useSession();
     const [showModal, setShowModal] = useState(false);
     const [pendingName, setPendingName] = useState("");
@@ -64,6 +65,34 @@ export default function LobbyPage() {
 
     // Track if we've already attempted to join to prevent infinite loops
     const hasAttemptedJoin = useRef(false);
+    const hasValidatedURL = useRef(false);
+
+    // Reset validation state when roomCode changes (client-side navigation to different room)
+    useEffect(() => {
+        hasValidatedURL.current = false;
+    }, [roomCode]);
+
+    // Validate URL matches stored roomId on mount
+    useEffect(() => {
+        if (!roomCode || !roomId || hasValidatedURL.current || initializing) {
+            return;
+        }
+
+        const validateURL = async () => {
+            const actualRoomId = await getRoomIdByCode(roomCode);
+            if (actualRoomId && actualRoomId !== roomId) {
+                console.log(
+                    `Room mismatch: URL roomCode=${roomCode} → roomId=${actualRoomId}, ` +
+                        `but session has roomId=${roomId}. Clearing session to rejoin.`
+                );
+                clearRoomSession();
+                hasAttemptedJoin.current = false; // Allow rejoin
+            }
+            hasValidatedURL.current = true;
+        };
+
+        validateURL();
+    }, [roomCode, roomId, initializing, clearRoomSession]);
 
     // Handle joining room via REST API when we have userName but no roomId
     const handleJoinRoom = useCallback(async () => {

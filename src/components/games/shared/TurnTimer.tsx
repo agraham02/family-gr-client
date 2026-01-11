@@ -71,7 +71,8 @@ export function TurnTimer({
     const strokeWidth = 3;
     const radius = (size - strokeWidth) / 2;
     const circumference = 2 * Math.PI * radius;
-    const strokeDashoffset = circumference * (1 - percentage / 100);
+    // Invert: start full (0 offset) and drain to empty (full circumference offset)
+    const strokeDashoffset = circumference * ((100 - percentage) / 100);
 
     if (!isActive) {
         // Just render children without timer ring when inactive

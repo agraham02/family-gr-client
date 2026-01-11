@@ -46,10 +46,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
     useEffect(() => {
         if (typeof window !== "undefined") {
-            // Use localStorage for persistence across browser sessions (enables rejoin after tab close)
-            const storedRoomId = localStorage.getItem("roomId") ?? "";
+            // roomId uses sessionStorage (tab-specific, enables multi-tab independence)
+            // userId/userName use localStorage (persist across sessions for kick enforcement and convenience)
+            const storedRoomId = sessionStorage.getItem("roomId") ?? "";
             const storedUserId = localStorage.getItem("userId") ?? "";
             const storedUserName = localStorage.getItem("userName") ?? "";
+
+            // Migration: Remove old localStorage roomId if it exists
+            if (localStorage.getItem("roomId")) {
+                localStorage.removeItem("roomId");
+            }
+
             setRoomIdState(storedRoomId);
             setUserIdState(storedUserId);
             setUserNameState(storedUserName);
@@ -66,12 +73,12 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     useEffect(() => {
         if (initializing) return; // Don't write during initialization
 
-        // Only update localStorage if values actually changed
+        // Only update storage if values actually changed
         const prev = prevValuesRef.current;
         let changed = false;
 
         if (roomId && roomId !== prev.roomId) {
-            localStorage.setItem("roomId", roomId);
+            sessionStorage.setItem("roomId", roomId);
             prev.roomId = roomId;
             changed = true;
         }
@@ -119,7 +126,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
         setRoomIdState("");
         setUserIdState("");
         setUserNameState("");
-        localStorage.removeItem("roomId");
+        sessionStorage.removeItem("roomId");
         localStorage.removeItem("userId");
         localStorage.removeItem("userName");
     };
@@ -128,7 +135,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     // Useful when kicked or room is closed - user shouldn't have to re-enter name
     const clearRoomSession = () => {
         setRoomIdState("");
-        localStorage.removeItem("roomId");
+        sessionStorage.removeItem("roomId");
     };
 
     // Clear userId and roomId but preserve userName only
@@ -136,7 +143,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     const clearUserSession = () => {
         setRoomIdState("");
         setUserIdState("");
-        localStorage.removeItem("roomId");
+        sessionStorage.removeItem("roomId");
         localStorage.removeItem("userId");
     };
 

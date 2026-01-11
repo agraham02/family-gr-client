@@ -90,15 +90,20 @@ function SpadesGameTable({
 
     // Memoize timer props to prevent unnecessary re-renders
     // Only create timer props object when timer is actually active
+    // Don't show timer during trick-result phase or dealing
     const timerPropsCache = useMemo(() => {
-        if (turnTimeLimit <= 0 || isDealing) {
+        if (
+            turnTimeLimit <= 0 ||
+            isDealing ||
+            gameData.phase === "trick-result"
+        ) {
             return undefined;
         }
         return {
             totalSeconds: turnTimeLimit,
             remainingSeconds,
         };
-    }, [turnTimeLimit, remainingSeconds, isDealing]);
+    }, [turnTimeLimit, remainingSeconds, isDealing, gameData.phase]);
 
     // Memoize unplayable card indices for performance
     const unplayableIndices = useMemo(
