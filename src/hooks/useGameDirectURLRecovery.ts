@@ -4,7 +4,7 @@
  * Validates that URL roomCode matches stored roomId to prevent navigation bugs.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSession } from "@/contexts/SessionContext";
 import { useRouter, useParams } from "next/navigation";
 import { attemptDirectGameRejoin, getRoomIdByCode } from "@/services/lobby";
@@ -15,55 +15,33 @@ interface UseGameDirectURLRecoveryOptions {
     onRecoveryFailed?: () => void;
 }
 
+interface UseGameDirectURLRecoveryResult {
+    isRecovering: boolean;
+    showNameModal: boolean;
+    onNameSubmit: (name: string) => void;
+    onNameCancel: () => void;
+}
+
 export function useGameDirectURLRecovery(
     options?: UseGameDirectURLRecoveryOptions
-) {
+): UseGameDirectURLRecoveryResult {
     const { roomId, userId, userName, setSessionData, clearRoomSession } =
         useSession();
     const router = useRouter();
     const { roomCode } = useParams<{ roomCode: string }>();
     const [isRecovering, setIsRecovering] = useState(false);
     const [hasValidated, setHasValidated] = useState(false);
+    const [showNameModal, setShowNameModal] = useState(false);
+    const [pendingName, setPendingName] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (!roomCode || hasValidated) {
-            return;
-        }
+    /**
+     * Perform the actual rejoin attempt with the given name
+     */
+    const performRejoin = useCallback(
+        async (nameToUse: string) => {
+            if (!roomCode) return;
 
-        const validateAndRecover = async () => {
-            // If we have a roomId, validate it matches the URL's roomCode
-            if (roomId) {
-                const actualRoomId = await getRoomIdByCode(roomCode);
-                if (actualRoomId && actualRoomId !== roomId) {
-                    console.log(
-                        `Room mismatch detected: URL roomCode=${roomCode} → roomId=${actualRoomId}, ` +
-                            `but session has roomId=${roomId}. Clearing session.`
-                    );
-                    clearRoomSession();
-                    // Will trigger recovery on next effect run
-                }
-                setHasValidated(true);
-                return;
-            }
-
-            // No roomId in session, trigger recovery
             setIsRecovering(true);
-
-            // Prompt for name if not in session
-            let nameToUse: string = userName || "";
-            if (!nameToUse) {
-                const promptResult: string | null = prompt(
-                    "Enter your name to rejoin the game:"
-                );
-                if (!promptResult) {
-                    // User cancelled, redirect to lobby
-                    router.push(`/lobby/${roomCode}`);
-                    options?.onRecoveryFailed?.();
-                    setIsRecovering(false);
-                    return;
-                }
-                nameToUse = promptResult;
-            }
 
             try {
                 // Attempt to rejoin with existing userId (if available)
@@ -101,20 +79,96 @@ export function useGameDirectURLRecovery(
                 setIsRecovering(false);
                 setHasValidated(true);
             }
-        };
+        },
+        [roomCode, userId, router, setSessionData, options]
+    );
 
-        validateAndRecover();
+    /**
+     * Handle name submission from modal
+     */
+    const onNameSubmit = useCallback((name: string) => {
+        setShowNameModal(false);
+        setPendingName(name);
+    }, []);
+
+    /**
+     * Handle modal cancellation
+     */
+    const onNameCancel = useCallback(() => {
+        setShowNameModal(false);
+        setHasValidated(true); // Prevent effect from re-running
+        if (roomCode) {
+            router.push(`/lobby/${roomCode}`);
+        }
+        options?.onRecoveryFailed?.();
+    }, [roomCode, router, options]);
+
+    // Effect to validate and trigger recovery flow
+    useEffect(() => {
+        if (!roomCode || hasValidated) {
+            return;
+        }
+
+        async function validateAndRecover() {
+            // If we have a roomId, validate it matches the URL's roomCode
+            if (roomId) {
+                const actualRoomId = await getRoomIdByCode(roomCode).catch(
+                    (error) => {
+                        console.error("Error getting room ID by code:", error);
+                        return null;
+                    }
+                );
+                if (actualRoomId && actualRoomId !== roomId) {
+                    console.log(
+                        `Room mismatch detected: URL roomCode=${roomCode} → roomId=${actualRoomId}, ` +
+                            `but session has roomId=${roomId}. Clearing session.`
+                    );
+                    clearRoomSession();
+                    // Will trigger recovery on next effect run
+                }
+                setHasValidated(true);
+                return;
+            }
+
+            // No roomId in session, check if we have a name
+            if (userName) {
+                // We have a name, proceed with rejoin
+                await performRejoin(userName);
+            } else {
+                // Show modal to get name from user
+                setShowNameModal(true);
+                // Mark as validated so effect doesn't re-run while modal is open
+                setHasValidated(true);
+            }
+        }
+
+        validateAndRecover().catch((error) => {
+            console.error("Unexpected error during recovery:", error);
+            setHasValidated(true);
+        });
     }, [
         roomCode,
         roomId,
-        userId,
         userName,
-        router,
-        setSessionData,
         clearRoomSession,
         hasValidated,
-        options,
+        performRejoin,
     ]);
 
-    return { isRecovering };
+    // Effect to handle name submission from modal
+    useEffect(() => {
+        if (pendingName) {
+            performRejoin(pendingName).catch((error) => {
+                console.error("Error during rejoin with name:", error);
+            });
+            setPendingName(null);
+        }
+    }, [pendingName, performRejoin]);
+
+    return {
+        isRecovering,
+        showNameModal,
+        onNameSubmit,
+        onNameCancel,
+    };
 }

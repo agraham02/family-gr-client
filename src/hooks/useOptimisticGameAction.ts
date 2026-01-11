@@ -4,7 +4,9 @@ import { GameData, PlayerData } from "@/types";
 import { v4 as uuidv4 } from "uuid";
 
 /**
- * Optimistic action tracking
+ * Optimistic action tracking with queue support.
+ * Each action stores a snapshot of state BEFORE it was applied,
+ * enabling rollback to any point in the queue.
  */
 type PendingAction = {
     id: string;
@@ -15,6 +17,7 @@ type PendingAction = {
         gameData: GameData;
         playerData: PlayerData;
     };
+    timeoutId: NodeJS.Timeout;
 };
 
 type OptimisticUpdateResult = {
@@ -55,61 +58,94 @@ export function useOptimisticGameAction({
     onRollback,
     actionTimeout = 5000,
 }: UseOptimisticGameActionProps) {
-    const [pendingAction, setPendingAction] = useState<PendingAction | null>(
-        null
-    );
-    const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+    // Queue of pending actions - use ref to avoid stale closure issues
+    const actionQueueRef = useRef<PendingAction[]>([]);
+    // State for UI reactivity (derived from queue)
+    const [hasPendingActions, setHasPendingActions] = useState(false);
 
     /**
-     * Rollback to the saved snapshot
+     * Update the reactive state from the queue ref
+     */
+    const syncQueueState = useCallback(() => {
+        setHasPendingActions(actionQueueRef.current.length > 0);
+    }, []);
+
+    /**
+     * Rollback a specific action or all actions from a given point.
+     * When rolling back, we restore to the snapshot of the FIRST action being rolled back,
+     * since that represents the state before any of these actions were applied.
      */
     const rollback = useCallback(
-        (reason: string) => {
-            if (!pendingAction) return;
+        (actionId: string, reason: string) => {
+            const queue = actionQueueRef.current;
+            const actionIndex = queue.findIndex((a) => a.id === actionId);
 
+            if (actionIndex === -1) return;
+
+            const action = queue[actionIndex];
             console.warn(
-                `[OptimisticAction] Rolling back action "${pendingAction.type}": ${reason}`
+                `[OptimisticAction] Rolling back action "${action.type}" and ${
+                    queue.length - actionIndex - 1
+                } subsequent actions: ${reason}`
             );
 
-            // Restore snapshot
-            setGameData(pendingAction.snapshot.gameData);
-            setPlayerData(pendingAction.snapshot.playerData);
-
-            // Clear pending action
-            setPendingAction(null);
-
-            // Clear timeout
-            if (timeoutRef.current) {
-                clearTimeout(timeoutRef.current);
-                timeoutRef.current = null;
+            // Clear timeouts for all actions being rolled back
+            for (let i = actionIndex; i < queue.length; i++) {
+                clearTimeout(queue[i].timeoutId);
             }
+
+            // Restore to the snapshot of the failed action (state before it was applied)
+            setGameData(action.snapshot.gameData);
+            setPlayerData(action.snapshot.playerData);
+
+            // Remove the failed action and all subsequent actions
+            actionQueueRef.current = queue.slice(0, actionIndex);
+            syncQueueState();
 
             // Notify caller
             onRollback?.(reason);
         },
-        [pendingAction, setGameData, setPlayerData, onRollback]
+        [setGameData, setPlayerData, onRollback, syncQueueState]
     );
 
     /**
-     * Confirm the pending action (server acknowledged it)
+     * Confirm a specific action (server acknowledged it).
+     * Only removes the confirmed action from the queue.
      */
-    const confirm = useCallback(() => {
-        if (!pendingAction) return;
+    const confirm = useCallback(
+        (actionId?: string) => {
+            const queue = actionQueueRef.current;
 
-        console.log(
-            `[OptimisticAction] Action "${pendingAction.type}" confirmed by server`
-        );
+            if (queue.length === 0) return;
 
-        setPendingAction(null);
+            // If no actionId provided, confirm the oldest action (FIFO)
+            const targetId = actionId ?? queue[0]?.id;
+            const actionIndex = queue.findIndex((a) => a.id === targetId);
 
-        if (timeoutRef.current) {
-            clearTimeout(timeoutRef.current);
-            timeoutRef.current = null;
-        }
-    }, [pendingAction]);
+            if (actionIndex === -1) return;
+
+            const action = queue[actionIndex];
+            console.log(
+                `[OptimisticAction] Action "${action.type}" confirmed by server`
+            );
+
+            // Clear the timeout for this action
+            clearTimeout(action.timeoutId);
+
+            // Remove from queue
+            actionQueueRef.current = [
+                ...queue.slice(0, actionIndex),
+                ...queue.slice(actionIndex + 1),
+            ];
+            syncQueueState();
+        },
+        [syncQueueState]
+    );
 
     /**
-     * Dispatch an action with optimistic update
+     * Dispatch an action with optimistic update.
+     * Actions are queued and processed in order, allowing multiple
+     * actions to be in-flight simultaneously.
      */
     const dispatch = useCallback(
         (actionType: string, actionPayload: unknown) => {
@@ -120,18 +156,11 @@ export function useOptimisticGameAction({
                 return;
             }
 
-            // Block if there's already a pending action
-            if (pendingAction) {
-                console.warn(
-                    "[OptimisticAction] Action blocked: another action is pending"
-                );
-                return;
-            }
-
             // Generate unique action ID
             const actionId = `${userId}-${uuidv4()}`;
 
-            // Save snapshot
+            // Get current state (after any pending optimistic updates)
+            // This ensures we snapshot the state INCLUDING previous optimistic changes
             const snapshot = {
                 gameData: { ...gameData },
                 playerData: { ...playerData },
@@ -160,20 +189,22 @@ export function useOptimisticGameAction({
                 }
             }
 
-            // Track pending action
+            // Set timeout for rollback - capture actionId in closure
+            const timeoutId = setTimeout(() => {
+                rollback(actionId, "Action timed out");
+            }, actionTimeout);
+
+            // Track pending action in queue
             const pending: PendingAction = {
                 id: actionId,
                 type: actionType,
                 payload: actionPayload,
                 timestamp: Date.now(),
                 snapshot,
+                timeoutId,
             };
-            setPendingAction(pending);
-
-            // Set timeout for rollback
-            timeoutRef.current = setTimeout(() => {
-                rollback("Action timed out");
-            }, actionTimeout);
+            actionQueueRef.current = [...actionQueueRef.current, pending];
+            syncQueueState();
 
             // Emit action to server
             socket.emit("game_action", {
@@ -182,7 +213,7 @@ export function useOptimisticGameAction({
             });
 
             console.log(
-                `[OptimisticAction] Dispatched "${actionType}" optimistically with ID: ${actionId}`
+                `[OptimisticAction] Dispatched "${actionType}" optimistically with ID: ${actionId} (queue size: ${actionQueueRef.current.length})`
             );
         },
         [
@@ -192,20 +223,35 @@ export function useOptimisticGameAction({
             playerData,
             userId,
             roomId,
-            pendingAction,
             optimisticReducer,
             setGameData,
             setPlayerData,
             rollback,
             actionTimeout,
+            syncQueueState,
         ]
+    );
+
+    /**
+     * Rollback all pending actions (e.g., on disconnect or error)
+     */
+    const rollbackAll = useCallback(
+        (reason: string) => {
+            const queue = actionQueueRef.current;
+            if (queue.length === 0) return;
+
+            // Rollback to the snapshot of the first action
+            rollback(queue[0].id, reason);
+        },
+        [rollback]
     );
 
     return {
         dispatch,
-        rollback,
+        rollback: rollbackAll,
         confirm,
-        hasPendingAction: !!pendingAction,
-        pendingActionType: pendingAction?.type ?? null,
+        hasPendingAction: hasPendingActions,
+        pendingActionType: actionQueueRef.current[0]?.type ?? null,
+        pendingActionCount: actionQueueRef.current.length,
     };
 }

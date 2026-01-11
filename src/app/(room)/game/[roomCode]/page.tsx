@@ -15,6 +15,7 @@ import { useGameDirectURLRecovery } from "@/hooks/useGameDirectURLRecovery";
 import { getSocket } from "@/lib/socket";
 import { useOptimisticGameAction } from "@/hooks/useOptimisticGameAction";
 import { optimisticGameReducer } from "@/lib/gameReducers";
+import { NameEntryModal } from "@/components/NameEntryModal";
 
 export default function GamePage() {
     const { roomId, userId } = useSession();
@@ -33,14 +34,15 @@ export default function GamePage() {
 
     // Handle direct game URL recovery (rejoin with name prompt if session lost)
     // This hook also validates that URL roomCode matches stored roomId
-    const { isRecovering } = useGameDirectURLRecovery({
-        onSessionRestored: () => {
-            // Session is now restored, component will re-render with roomId/userId
-        },
-        onRecoveryFailed: () => {
-            // User redirected to lobby by the hook
-        },
-    });
+    const { isRecovering, showNameModal, onNameSubmit, onNameCancel } =
+        useGameDirectURLRecovery({
+            onSessionRestored: () => {
+                // Session is now restored, component will re-render with roomId/userId
+            },
+            onRecoveryFailed: () => {
+                // User redirected to lobby by the hook
+            },
+        });
 
     // Optimistic action handling
     const optimisticAction = useOptimisticGameAction({
@@ -259,7 +261,8 @@ export default function GamePage() {
             error?: string;
         }) => {
             if (success) {
-                optimisticAction.confirm();
+                // Pass actionId to confirm the specific action (handles out-of-order acks)
+                optimisticAction.confirm(actionId);
             } else if (error) {
                 console.error(`Action ${actionId} failed:`, error);
                 optimisticAction.rollback(error);
@@ -298,7 +301,18 @@ export default function GamePage() {
     }
 
     if (!gameData || isRecovering) {
-        return <GameSkeleton />;
+        return (
+            <>
+                <NameEntryModal
+                    open={showNameModal}
+                    onSubmit={onNameSubmit}
+                    onCancel={onNameCancel}
+                    title="Rejoin Game"
+                    description="Enter your name to rejoin the game."
+                />
+                <GameSkeleton />
+            </>
+        );
     }
 
     const isLeader = leaderId === userId;

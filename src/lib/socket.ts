@@ -61,10 +61,13 @@ export function connectSocket(roomId: string, userId: string): Socket {
 
 /**
  * Disconnect the socket and clean up.
+ * Removes all event listeners to prevent memory leaks and stale handlers.
  */
 export function disconnectSocket(): void {
     if (socket) {
+        socket.removeAllListeners();
         socket.disconnect();
+        socket = null;
     }
 }
 
