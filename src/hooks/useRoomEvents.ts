@@ -272,6 +272,10 @@ export function useRoomEvents(options: UseRoomEventsOptions) {
                 "🔗 Already joined - duplicate connection detected by server"
             );
             hasJoinedRef.current = true;
+            toast.info(
+                "You're connected to this room in another tab. This tab is now active.",
+                { duration: 5000 }
+            );
         }
         socket.on("already_joined", handleAlreadyJoined);
 

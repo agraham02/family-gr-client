@@ -96,9 +96,13 @@ function optimisticSpadesPlayCard(
 function optimisticSpadesPlaceBid(
     gameData: SpadesData,
     playerData: SpadesPlayerData,
-    action: { type: string; payload: { amount: number }; userId: string }
+    action: {
+        type: string;
+        payload: { bid: { amount: number; type: string; isBlind: boolean } };
+        userId: string;
+    }
 ): OptimisticUpdateResult | null {
-    const { amount } = action.payload;
+    const { bid } = action.payload;
     const { userId } = action;
 
     // Validate it's the player's turn
@@ -107,9 +111,33 @@ function optimisticSpadesPlaceBid(
         return null;
     }
 
+    // Validate blind bid eligibility
+    if (bid.type === "blind" || bid.type === "blind-nil") {
+        const playerTeam = Object.entries(gameData.teams).find(([_, team]) =>
+            team.players.includes(userId)
+        );
+        if (!playerTeam) return null;
+
+        const teamId = Number(playerTeam[0]);
+        const isEligible = gameData.teamEligibleForBlind?.[teamId];
+
+        if (!isEligible) {
+            console.warn("Blind bid attempted but team not eligible");
+            return null; // Don't apply optimistic update
+        }
+
+        // Validate settings
+        if (bid.type === "blind-nil" && !gameData.settings.blindNilEnabled) {
+            return null;
+        }
+        if (bid.type === "blind" && !gameData.settings.blindBidEnabled) {
+            return null;
+        }
+    }
+
     // Update bids
     const newBids = { ...gameData.bids };
-    newBids[userId] = { amount };
+    newBids[userId] = bid;
 
     // Update turn index
     const newTurnIndex =
@@ -286,7 +314,13 @@ export function optimisticGameReducer(
                     spadesPlayerData,
                     action as {
                         type: string;
-                        payload: { amount: number };
+                        payload: {
+                            bid: {
+                                amount: number;
+                                type: string;
+                                isBlind: boolean;
+                            };
+                        };
                         userId: string;
                     }
                 );

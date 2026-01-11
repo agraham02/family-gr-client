@@ -1,12 +1,13 @@
 /**
  * Hook to handle rejoin/recovery when navigating directly to a game URL.
  * If no session exists, attempts to rejoin with a name prompt.
+ * Validates that URL roomCode matches stored roomId to prevent navigation bugs.
  */
 
 import { useEffect, useState } from "react";
 import { useSession } from "@/contexts/SessionContext";
 import { useRouter, useParams } from "next/navigation";
-import { attemptDirectGameRejoin } from "@/services/lobby";
+import { attemptDirectGameRejoin, getRoomIdByCode } from "@/services/lobby";
 import { toast } from "sonner";
 
 interface UseGameDirectURLRecoveryOptions {
@@ -17,28 +18,35 @@ interface UseGameDirectURLRecoveryOptions {
 export function useGameDirectURLRecovery(
     options?: UseGameDirectURLRecoveryOptions
 ) {
-    const { roomId, userId, userName, setSessionData } = useSession();
+    const { roomId, userId, userName, setSessionData, clearRoomSession } =
+        useSession();
     const router = useRouter();
     const { roomCode } = useParams<{ roomCode: string }>();
     const [isRecovering, setIsRecovering] = useState(false);
+    const [hasValidated, setHasValidated] = useState(false);
 
     useEffect(() => {
-        // Only trigger if:
-        // 1. No session roomId (lost session), OR
-        // 2. Valid roomCode from URL that differs from current session
-        // This handles both: session loss AND navigating to different room
-        if (!roomCode) {
+        if (!roomCode || hasValidated) {
             return;
         }
 
-        // If we have a roomId, we need to check if URL matches current room
-        // For now, we'll trigger recovery if there's no roomId
-        // TODO: Add room code lookup to validate if roomId matches roomCode
-        if (roomId) {
-            return;
-        }
+        const validateAndRecover = async () => {
+            // If we have a roomId, validate it matches the URL's roomCode
+            if (roomId) {
+                const actualRoomId = await getRoomIdByCode(roomCode);
+                if (actualRoomId && actualRoomId !== roomId) {
+                    console.log(
+                        `Room mismatch detected: URL roomCode=${roomCode} → roomId=${actualRoomId}, ` +
+                            `but session has roomId=${roomId}. Clearing session.`
+                    );
+                    clearRoomSession();
+                    // Will trigger recovery on next effect run
+                }
+                setHasValidated(true);
+                return;
+            }
 
-        const recover = async () => {
+            // No roomId in session, trigger recovery
             setIsRecovering(true);
 
             // Prompt for name if not in session
@@ -91,11 +99,22 @@ export function useGameDirectURLRecovery(
                 options?.onRecoveryFailed?.();
             } finally {
                 setIsRecovering(false);
+                setHasValidated(true);
             }
         };
 
-        recover();
-    }, [roomId, roomCode, userName, userId, router, setSessionData, options]);
+        validateAndRecover();
+    }, [
+        roomCode,
+        roomId,
+        userId,
+        userName,
+        router,
+        setSessionData,
+        clearRoomSession,
+        hasValidated,
+        options,
+    ]);
 
     return { isRecovering };
 }

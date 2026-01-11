@@ -1,5 +1,5 @@
 import { useWebSocket } from "@/contexts/WebSocketContext";
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 import { useSession } from "@/contexts/SessionContext";
 import SpadesGameTable from "./ui/SpadesGameTable";
@@ -11,8 +11,43 @@ import {
 } from "@/components/games/shared";
 import { SpadesData, SpadesPlayerData, PlayingCard } from "@/types";
 import PlaceBidModal from "./ui/PlaceBidModal";
+import BlindBidModal from "./ui/BlindBidModal";
 import RoundSummaryModal from "./ui/RoundSummaryModal";
+import GameSummaryModal from "./ui/GameSummaryModal";
 import { Lightbulb } from "lucide-react";
+import { toast } from "sonner";
+import { useWebSocketError } from "@/hooks";
+
+// Wrapper component for BlindBidModal to properly use hooks
+function BlindBidModalWrapper({
+    blindBidModalOpen,
+    onClose,
+    canBlindNil,
+    canBlindBid,
+    teamScoreDeficit,
+    onChooseBlindNil,
+    onChooseBlindBid,
+}: {
+    blindBidModalOpen: boolean;
+    onClose: () => void;
+    canBlindNil: boolean;
+    canBlindBid: boolean;
+    teamScoreDeficit: number;
+    onChooseBlindNil: () => void;
+    onChooseBlindBid: (amount: number) => void;
+}) {
+    return (
+        <BlindBidModal
+            isOpen={blindBidModalOpen}
+            onClose={onClose}
+            canBlindNil={canBlindNil}
+            canBlindBid={canBlindBid}
+            teamScoreDeficit={teamScoreDeficit}
+            onChooseBlindNil={onChooseBlindNil}
+            onChooseBlindBid={onChooseBlindBid}
+        />
+    );
+}
 
 export default function Spades({
     gameData,
@@ -27,6 +62,9 @@ export default function Spades({
 }) {
     const { socket, connected } = useWebSocket();
     const { roomId, userId } = useSession();
+
+    // Enable WebSocket error handling with toasts
+    useWebSocketError();
 
     const sendGameAction = React.useCallback(
         (type: string, payload: unknown) => {
@@ -67,17 +105,132 @@ export default function Spades({
     const isMyTurn = gameData.playOrder[gameData.currentTurnIndex] === userId;
     const isLeader = userId === gameData.leaderId;
     const showHints = useGameSetting("spades.showHints", false);
-    const [bid, setBid] = useState<number>(0);
+    const [bid, setBid] = useState<number>(1);
     const [bidModalOpen, setBidModalOpen] = useState(false);
+    const [blindBidModalOpen, setBlindBidModalOpen] = useState(false);
+    const [hasSeenCards, setHasSeenCards] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    // Calculate blind bid eligibility
+    const blindBidEligibility = useMemo(() => {
+        let playerTeamId: number | undefined;
+        Object.entries(gameData.teams).forEach(([teamId, team]) => {
+            if (team.players.includes(userId)) {
+                playerTeamId = Number(teamId);
+            }
+        });
+
+        const isEligible =
+            playerTeamId !== undefined &&
+            (gameData.teamEligibleForBlind?.[playerTeamId] || false);
+
+        const maxScore = Math.max(
+            ...Object.values(gameData.teams).map((t) => t.score),
+            0
+        );
+        const teamScoreDeficit =
+            playerTeamId !== undefined
+                ? maxScore - gameData.teams[playerTeamId].score
+                : 0;
+
+        return {
+            isEligible,
+            canBlindNil:
+                isEligible &&
+                gameData.settings.allowNil &&
+                gameData.settings.blindNilEnabled,
+            canBlindBid: isEligible && gameData.settings.blindBidEnabled,
+            teamScoreDeficit,
+        };
+    }, [
+        gameData.teams,
+        gameData.teamEligibleForBlind,
+        gameData.settings,
+        userId,
+    ]);
+
+    const canShowBlindBid =
+        blindBidEligibility.isEligible &&
+        (blindBidEligibility.canBlindNil || blindBidEligibility.canBlindBid);
+
+    // Reset hasSeenCards at start of each bidding phase
+    useEffect(() => {
+        if (isBiddingPhase) {
+            setHasSeenCards(false);
+        }
+    }, [isBiddingPhase, gameData.round]);
+
+    // Auto-show appropriate modal when it's my turn
+    useEffect(() => {
+        if (isMyTurn && isBiddingPhase && !hasSeenCards) {
+            if (canShowBlindBid) {
+                setBlindBidModalOpen(true);
+            } else {
+                // Not eligible for blind bid, skip directly to regular bidding
+                setHasSeenCards(true);
+            }
+        }
+    }, [isMyTurn, isBiddingPhase, hasSeenCards, canShowBlindBid]);
 
     function handleBidChange(delta: number) {
-        setBid((prev: number) => Math.max(0, prev + delta));
+        // Minimum bid is 1 (0 requires Nil bid)
+        setBid((prev: number) => Math.max(1, Math.min(13, prev + delta)));
     }
 
-    function handleSubmitBid() {
-        if (!isMyTurn) return;
-        sendGameAction("PLACE_BID", { bid: { amount: bid, type: "normal" } });
-        setBid(0); // Reset bid after submitting
+    function handleSubmitBid(isNil: boolean) {
+        if (!isMyTurn) {
+            toast.error("It's not your turn!");
+            return;
+        }
+        if (isSubmitting) return;
+
+        setIsSubmitting(true);
+        const bidData = {
+            amount: isNil ? 0 : bid,
+            type: isNil ? "nil" : "normal",
+            isBlind: false,
+        };
+        sendGameAction("PLACE_BID", { bid: bidData });
+        setBid(1);
+
+        // Reset loading state after delay
+        setTimeout(() => setIsSubmitting(false), 500);
+    }
+
+    function handleBlindNil() {
+        if (isSubmitting) return;
+
+        setIsSubmitting(true);
+        sendGameAction("PLACE_BID", {
+            bid: { amount: 0, type: "blind-nil", isBlind: true },
+        });
+        setBlindBidModalOpen(false);
+        setHasSeenCards(true);
+
+        setTimeout(() => setIsSubmitting(false), 500);
+    }
+
+    function handleBlindBid(amount: number) {
+        if (isSubmitting) return;
+
+        setIsSubmitting(true);
+        sendGameAction("PLACE_BID", {
+            bid: { amount, type: "blind", isBlind: true },
+        });
+        setBlindBidModalOpen(false);
+        setHasSeenCards(true);
+
+        setTimeout(() => setIsSubmitting(false), 500);
+    }
+
+    function handleDeclineBlind() {
+        setBlindBidModalOpen(false);
+        setHasSeenCards(true);
+    }
+
+    function handleReturnToLobby() {
+        if (!socket || !connected) return;
+        socket.emit("abort_game", { roomId, userId });
     }
 
     const handleCardPlay = useCallback(
@@ -179,18 +332,38 @@ export default function Spades({
             >
                 Place Bid
             </Button>
+
+            {/* Blind Bid Modal - shown first if eligible */}
+            <BlindBidModalWrapper
+                blindBidModalOpen={blindBidModalOpen}
+                onClose={handleDeclineBlind}
+                canBlindNil={blindBidEligibility.canBlindNil}
+                canBlindBid={blindBidEligibility.canBlindBid}
+                teamScoreDeficit={blindBidEligibility.teamScoreDeficit}
+                onChooseBlindNil={handleBlindNil}
+                onChooseBlindBid={handleBlindBid}
+            />
+
             <PlaceBidModal
                 bid={bid}
-                bidModalOpen={bidModalOpen}
+                bidModalOpen={bidModalOpen && hasSeenCards}
                 setBidModalOpen={setBidModalOpen}
                 handleBidChange={handleBidChange}
                 handleSubmitBid={handleSubmitBid}
+                allowNil={gameData.settings.allowNil}
+                isSubmitting={isSubmitting}
             />
 
             {/* Round Summary Modal */}
             <RoundSummaryModal
                 gameData={gameData}
                 sendGameAction={sendGameAction}
+            />
+
+            {/* Game Summary Modal */}
+            <GameSummaryModal
+                gameData={gameData}
+                onReturnToLobby={handleReturnToLobby}
             />
         </div>
     );

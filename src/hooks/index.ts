@@ -1,6 +1,8 @@
 export { useContainerDimensions } from "./useContainerDimensions";
 export type { ContainerDimensions } from "./useContainerDimensions";
 
+export { useWebSocketError } from "./useWebSocketError";
+
 export { usePlayerPositions } from "./usePlayerPositions";
 export type {
     PlayerPosition,

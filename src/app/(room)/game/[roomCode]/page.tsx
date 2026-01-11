@@ -32,6 +32,7 @@ export default function GamePage() {
     const router = useRouter();
 
     // Handle direct game URL recovery (rejoin with name prompt if session lost)
+    // This hook also validates that URL roomCode matches stored roomId
     const { isRecovering } = useGameDirectURLRecovery({
         onSessionRestored: () => {
             // Session is now restored, component will re-render with roomId/userId

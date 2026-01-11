@@ -2,7 +2,7 @@
 // Dynamic game settings component that renders controls based on settings definitions
 "use client";
 
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState, useEffect } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/card";
 import { Badge } from "../ui/badge";
@@ -81,13 +81,21 @@ export default function GameSettingsCard({
     const { definitions, defaults, isLoading, error } =
         useGameSettingsSchema(gameType);
 
-    // Merge defaults with current settings
-    const mergedSettings = useMemo(() => {
-        if (!defaults) return settings;
-        return { ...defaults, ...settings };
-    }, [defaults, settings]);
+    // Local state for immediate UI updates
+    const [localSettings, setLocalSettings] = useState<GameSettings>(settings);
 
-    // Handle setting change with debouncing to prevent network spam
+    // Sync local settings when external settings change
+    useEffect(() => {
+        setLocalSettings(settings);
+    }, [settings]);
+
+    // Merge defaults with current local settings
+    const mergedSettings = useMemo(() => {
+        if (!defaults) return localSettings;
+        return { ...defaults, ...localSettings };
+    }, [defaults, localSettings]);
+
+    // Debounce only the backend call, not the UI update
     const debouncedSettingsChange = useDebouncedCallback(
         (newSettings: GameSettings) => {
             onSettingsChange(newSettings);
@@ -99,6 +107,9 @@ export default function GameSettingsCard({
         (key: string, value: unknown) => {
             if (!isLeader) return;
             const newSettings = { ...mergedSettings, [key]: value };
+            // Update local state immediately for responsive UI
+            setLocalSettings(newSettings);
+            // Debounce the backend call
             debouncedSettingsChange(newSettings);
         },
         [isLeader, mergedSettings, debouncedSettingsChange]

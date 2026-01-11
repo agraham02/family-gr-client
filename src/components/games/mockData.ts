@@ -141,26 +141,37 @@ export function generateSpadesMockData(options: SpadesMockOptions = {}): {
         teams["0"] = {
             players: [playOrder[0], playOrder[2]],
             score: Math.floor(Math.random() * 200),
+            accumulatedBags: Math.floor(Math.random() * 8),
         };
         teams["1"] = {
             players: [playOrder[1], playOrder[3]],
             score: Math.floor(Math.random() * 200),
+            accumulatedBags: Math.floor(Math.random() * 8),
         };
     } else if (playerCount === 2) {
         teams["0"] = {
             players: [playOrder[0]],
             score: Math.floor(Math.random() * 200),
+            accumulatedBags: Math.floor(Math.random() * 8),
         };
         teams["1"] = {
             players: [playOrder[1]],
             score: Math.floor(Math.random() * 200),
+            accumulatedBags: Math.floor(Math.random() * 8),
         };
     }
 
     // Generate random bids
-    const bids: Record<string, { amount: number }> = {};
+    const bids: Record<
+        string,
+        { amount: number; type: string; isBlind: boolean }
+    > = {};
     playOrder.forEach((playerId) => {
-        bids[playerId] = { amount: Math.floor(Math.random() * 5) + 1 };
+        bids[playerId] = {
+            amount: Math.floor(Math.random() * 5) + 1,
+            type: "normal",
+            isBlind: false,
+        };
     });
 
     // Generate hands counts
@@ -211,6 +222,9 @@ export function generateSpadesMockData(options: SpadesMockOptions = {}): {
             bagsPenalty: 100,
             winTarget: 500,
             blindNilEnabled: false,
+            blindBidEnabled: false,
+            jokersEnabled: false,
+            deuceOfSpadesHigh: false,
         },
         history: [],
         hands: hands.map((h) => h.map((c) => `${c.rank}${c.suit}`)),
@@ -218,6 +232,7 @@ export function generateSpadesMockData(options: SpadesMockOptions = {}): {
         roundTrickCounts,
         roundTeamScores: { 0: 50, 1: 30 },
         roundScoreBreakdown: {},
+        teamEligibleForBlind: { 0: false, 1: false },
     };
 
     const playerData: SpadesPlayerData = {

@@ -27,6 +27,8 @@ import {
     DealingOverlay,
     DealingItem,
 } from "@/components/games/shared";
+import { Badge } from "@/components/ui/badge";
+import { Zap, Ban } from "lucide-react";
 import { getUnplayableCardIndices } from "@/lib/spadesValidation";
 import { useTurnTimer } from "@/hooks";
 
@@ -88,24 +90,36 @@ function SpadesGameTable({
 
     // Memoize timer props to prevent unnecessary re-renders
     // Only create timer props object when timer is actually active
+    // Don't show timer during trick-result phase or dealing
     const timerPropsCache = useMemo(() => {
-        if (turnTimeLimit <= 0 || isDealing) {
+        if (
+            turnTimeLimit <= 0 ||
+            isDealing ||
+            gameData.phase === "trick-result"
+        ) {
             return undefined;
         }
         return {
             totalSeconds: turnTimeLimit,
             remainingSeconds,
         };
-    }, [turnTimeLimit, remainingSeconds, isDealing]);
+    }, [turnTimeLimit, remainingSeconds, isDealing, gameData.phase]);
+
+    // Memoize unplayable card indices for performance
+    const unplayableIndices = useMemo(
+        () =>
+            getUnplayableCardIndices(
+                playerData.hand,
+                gameData.currentTrick,
+                gameData.spadesBroken
+            ),
+        [playerData.hand, gameData.currentTrick, gameData.spadesBroken]
+    );
 
     // Calculate which cards are unplayable when hints are enabled
     const disabledCardIndices =
         showHints && isMyTurn && gameData.phase === "playing"
-            ? getUnplayableCardIndices(
-                  playerData.hand,
-                  gameData.currentTrick,
-                  gameData.spadesBroken
-              )
+            ? unplayableIndices
             : [];
 
     // Handle card selection (two-step: select, then confirm)
@@ -307,7 +321,9 @@ function SpadesGameTable({
                         const isCurrentTurn =
                             gameData.playOrder[gameData.currentTurnIndex] ===
                             playerId;
-                        const bid = gameData.bids[playerId]?.amount ?? null;
+                        const bidData = gameData.bids[playerId];
+                        const bid = bidData?.amount ?? null;
+                        const bidType = bidData?.type;
                         const tricksWon =
                             gameData.roundTrickCounts?.[playerId] ?? 0;
                         const edgePosition = getEdgePosition(
@@ -339,14 +355,57 @@ function SpadesGameTable({
                                     isCurrentTurn={isCurrentTurn && !isDealing}
                                     isLocalPlayer={isLocal}
                                     seatPosition={edgePosition}
-                                    bid={bid}
-                                    tricksWon={tricksWon}
                                     teamColor={teamColor}
                                     turnTimer={
                                         isCurrentTurn && timerPropsCache
                                             ? timerPropsCache
                                             : undefined
                                     }
+                                    customStats={() => (
+                                        <div className="flex gap-1 items-center">
+                                            {bid !== null && (
+                                                <>
+                                                    <Badge
+                                                        variant="outline"
+                                                        className="text-[10px] px-1.5 py-0 bg-black/30 border-white/20 text-white/80"
+                                                    >
+                                                        Bid: {bid}
+                                                    </Badge>
+                                                    {bidType === "nil" && (
+                                                        <Badge className="text-[10px] px-1.5 py-0 bg-purple-600 text-white border-purple-400">
+                                                            NIL
+                                                        </Badge>
+                                                    )}
+                                                    {bidType === "blind" && (
+                                                        <Badge className="text-[10px] px-1.5 py-0 bg-amber-600 text-white border-amber-400 flex items-center gap-0.5">
+                                                            <Zap className="w-2.5 h-2.5" />
+                                                            BLIND
+                                                        </Badge>
+                                                    )}
+                                                    {bidType ===
+                                                        "blind-nil" && (
+                                                        <Badge className="text-[10px] px-1.5 py-0 bg-red-600 text-white border-red-400 animate-pulse flex items-center gap-0.5">
+                                                            <Ban className="w-2.5 h-2.5" />
+                                                            BLIND NIL
+                                                        </Badge>
+                                                    )}
+                                                </>
+                                            )}
+                                            {tricksWon !== undefined &&
+                                                bid !== null && (
+                                                    <Badge
+                                                        variant="outline"
+                                                        className={`text-[10px] px-1.5 py-0 border-white/20 ${
+                                                            tricksWon >= bid
+                                                                ? "bg-green-500/30 text-green-300"
+                                                                : "bg-black/30 text-white/80"
+                                                        }`}
+                                                    >
+                                                        Won: {tricksWon}
+                                                    </Badge>
+                                                )}
+                                        </div>
+                                    )}
                                 />
                                 <CardHand
                                     cards={getCardsToShow(playerId, isLocal)}
