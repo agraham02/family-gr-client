@@ -16,6 +16,83 @@ import RoundSummaryModal from "./ui/RoundSummaryModal";
 import GameSummaryModal from "./ui/GameSummaryModal";
 import { Lightbulb } from "lucide-react";
 
+// Wrapper component for BlindBidModal to properly use hooks
+function BlindBidModalWrapper({
+    gameData,
+    userId,
+    isMyTurn,
+    isBiddingPhase,
+    hasSeenCards,
+    blindBidModalOpen,
+    setBlindBidModalOpen,
+    handleBlindNil,
+    handleBlindBid,
+    handleDeclineBlind,
+}: {
+    gameData: SpadesData;
+    userId: string;
+    isMyTurn: boolean;
+    isBiddingPhase: boolean;
+    hasSeenCards: boolean;
+    blindBidModalOpen: boolean;
+    setBlindBidModalOpen: (open: boolean) => void;
+    handleBlindNil: () => void;
+    handleBlindBid: (amount: number) => void;
+    handleDeclineBlind: () => void;
+}) {
+    // Find player's team
+    let playerTeamId: number | undefined;
+    Object.entries(gameData.teams).forEach(([teamId, team]) => {
+        if (team.players.includes(userId)) {
+            playerTeamId = Number(teamId);
+        }
+    });
+
+    const isEligible =
+        playerTeamId !== undefined &&
+        (gameData.teamEligibleForBlind?.[playerTeamId] || false);
+    const canBlindNil =
+        isEligible &&
+        gameData.settings.allowNil &&
+        gameData.settings.blindNilEnabled;
+    const canBlindBid = isEligible && gameData.settings.blindBidEnabled;
+
+    // Calculate team score deficit
+    let teamScoreDeficit = 0;
+    if (playerTeamId !== undefined) {
+        const maxScore = Math.max(
+            ...Object.values(gameData.teams).map((t) => t.score),
+            0
+        );
+        teamScoreDeficit = maxScore - gameData.teams[playerTeamId].score;
+    }
+
+    const shouldShowBlindModal =
+        isMyTurn &&
+        isBiddingPhase &&
+        !hasSeenCards &&
+        isEligible &&
+        (canBlindNil || canBlindBid);
+
+    React.useEffect(() => {
+        if (shouldShowBlindModal) {
+            setBlindBidModalOpen(true);
+        }
+    }, [shouldShowBlindModal, setBlindBidModalOpen]);
+
+    return (
+        <BlindBidModal
+            isOpen={blindBidModalOpen && shouldShowBlindModal}
+            onClose={handleDeclineBlind}
+            canBlindNil={canBlindNil}
+            canBlindBid={canBlindBid}
+            teamScoreDeficit={teamScoreDeficit}
+            onChooseBlindNil={handleBlindNil}
+            onChooseBlindBid={handleBlindBid}
+        />
+    );
+}
+
 export default function Spades({
     gameData,
     playerData,
@@ -118,7 +195,8 @@ export default function Spades({
     }
 
     function handleReturnToLobby() {
-        sendGameAction("END_GAME", {});
+        if (!socket || !connected) return;
+        socket.emit("abort_game", { roomId, userId });
     }
 
     const handleCardPlay = useCallback(
@@ -222,66 +300,18 @@ export default function Spades({
             </Button>
 
             {/* Blind Bid Modal - shown first if eligible */}
-            {(() => {
-                // Find player's team
-                let playerTeamId: number | undefined;
-                Object.entries(gameData.teams).forEach(([teamId, team]) => {
-                    if (team.players.includes(userId)) {
-                        playerTeamId = Number(teamId);
-                    }
-                });
-
-                const isEligible =
-                    playerTeamId !== undefined &&
-                    (gameData.teamEligibleForBlind?.[playerTeamId] || false);
-                const canBlindNil =
-                    isEligible &&
-                    gameData.settings.allowNil &&
-                    gameData.settings.blindNilEnabled;
-                const canBlindBid =
-                    isEligible && gameData.settings.blindBidEnabled;
-
-                // Calculate team score deficit
-                let teamScoreDeficit = 0;
-                if (playerTeamId !== undefined) {
-                    const maxScore = Math.max(
-                        ...Object.values(gameData.teams).map((t) => t.score),
-                        0
-                    );
-                    teamScoreDeficit =
-                        maxScore - gameData.teams[playerTeamId].score;
-                }
-
-                // Show blind bid modal if:
-                // 1. It's my turn during bidding
-                // 2. I haven't seen my cards yet
-                // 3. My team is eligible
-                // 4. Either blind nil or blind bid is enabled
-                const shouldShowBlindModal =
-                    isMyTurn &&
-                    isBiddingPhase &&
-                    !hasSeenCards &&
-                    isEligible &&
-                    (canBlindNil || canBlindBid);
-
-                useEffect(() => {
-                    if (shouldShowBlindModal) {
-                        setBlindBidModalOpen(true);
-                    }
-                }, [shouldShowBlindModal]);
-
-                return (
-                    <BlindBidModal
-                        isOpen={blindBidModalOpen && shouldShowBlindModal}
-                        onClose={handleDeclineBlind}
-                        canBlindNil={canBlindNil}
-                        canBlindBid={canBlindBid}
-                        teamScoreDeficit={teamScoreDeficit}
-                        onChooseBlindNil={handleBlindNil}
-                        onChooseBlindBid={handleBlindBid}
-                    />
-                );
-            })()}
+            <BlindBidModalWrapper
+                gameData={gameData}
+                userId={userId}
+                isMyTurn={isMyTurn}
+                isBiddingPhase={isBiddingPhase}
+                hasSeenCards={hasSeenCards}
+                blindBidModalOpen={blindBidModalOpen}
+                setBlindBidModalOpen={setBlindBidModalOpen}
+                handleBlindNil={handleBlindNil}
+                handleBlindBid={handleBlindBid}
+                handleDeclineBlind={handleDeclineBlind}
+            />
 
             <PlaceBidModal
                 bid={bid}

@@ -5,15 +5,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useSession } from "@/contexts/SessionContext";
 import { SpadesData } from "@/types/games/spades";
 import { motion, AnimatePresence } from "motion/react";
-import {
-    Trophy,
-    Crown,
-    Users,
-    Target,
-    TrendingUp,
-    Award,
-    Home,
-} from "lucide-react";
+import { Trophy, Crown, Users, Award, Home } from "lucide-react";
 import React from "react";
 
 export default function GameSummaryModal({
@@ -31,7 +23,6 @@ export default function GameSummaryModal({
     const teams = Object.entries(gameData.teams);
     const sortedTeams = [...teams].sort((a, b) => b[1].score - a[1].score);
     const [winningTeamId, winningTeam] = sortedTeams[0] || [];
-    const winningTeamNumber = winningTeamId ? Number(winningTeamId) + 1 : 0;
 
     // Check if current user is on winning team
     const currentUserTeamId = Object.entries(gameData.teams).find(([_, team]) =>

@@ -311,7 +311,6 @@ function SpadesGameTable({
                         const bidData = gameData.bids[playerId];
                         const bid = bidData?.amount ?? null;
                         const bidType = bidData?.type;
-                        const isBlind = bidData?.isBlind;
                         const tricksWon =
                             gameData.roundTrickCounts?.[playerId] ?? 0;
                         const edgePosition = getEdgePosition(
@@ -349,7 +348,7 @@ function SpadesGameTable({
                                             ? timerPropsCache
                                             : undefined
                                     }
-                                    customStats={(textAlign) => (
+                                    customStats={() => (
                                         <div className="flex gap-1 items-center">
                                             {bid !== null && (
                                                 <>
