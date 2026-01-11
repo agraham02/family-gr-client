@@ -13,6 +13,7 @@ import { SpadesData, SpadesPlayerData, PlayingCard } from "@/types";
 import PlaceBidModal from "./ui/PlaceBidModal";
 import BlindBidModal from "./ui/BlindBidModal";
 import RoundSummaryModal from "./ui/RoundSummaryModal";
+import GameSummaryModal from "./ui/GameSummaryModal";
 import { Lightbulb } from "lucide-react";
 
 export default function Spades({
@@ -114,6 +115,10 @@ export default function Spades({
     function handleDeclineBlind() {
         setBlindBidModalOpen(false);
         setHasSeenCards(true);
+    }
+
+    function handleReturnToLobby() {
+        sendGameAction("END_GAME", {});
     }
 
     const handleCardPlay = useCallback(
@@ -291,6 +296,12 @@ export default function Spades({
             <RoundSummaryModal
                 gameData={gameData}
                 sendGameAction={sendGameAction}
+            />
+
+            {/* Game Summary Modal */}
+            <GameSummaryModal
+                gameData={gameData}
+                onReturnToLobby={handleReturnToLobby}
             />
         </div>
     );
