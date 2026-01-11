@@ -4,7 +4,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { useSession } from "@/contexts/SessionContext";
-import { DominoesData, Players } from "@/types";
+import { DominoesData } from "@/types";
 import { cn } from "@/lib/utils";
 import { Trophy, Crown } from "lucide-react";
 
@@ -24,6 +24,7 @@ export default function RoundSummaryModal({
     const isOpen = isRoundSummary || isFinished;
 
     const roundWinner = gameData.roundWinner;
+    const isRoundTie = gameData.isRoundTie;
     const gameWinner = gameData.gameWinner;
     const players = gameData.players;
     const playerScores = gameData.playerScores;
@@ -75,6 +76,10 @@ export default function RoundSummaryModal({
                                 {players[roundWinner]?.name || "Unknown"} wins
                                 this round!
                             </div>
+                        ) : isRoundTie ? (
+                            <div className="text-lg font-semibold text-amber-600 dark:text-amber-400">
+                                It&apos;s a tie! No points awarded.
+                            </div>
                         ) : (
                             <div className="text-lg font-semibold text-amber-600 dark:text-amber-400">
                                 Blocked game - lowest pip count wins!
@@ -90,27 +95,45 @@ export default function RoundSummaryModal({
                             Remaining Pips
                         </div>
                         <div className="grid grid-cols-2 gap-2">
-                            {Object.entries(roundPipCounts).map(
-                                ([playerId, pips]) => (
-                                    <div
-                                        key={playerId}
-                                        className={cn(
-                                            "flex justify-between items-center px-2 py-1 rounded",
-                                            playerId === roundWinner
-                                                ? "bg-green-100 dark:bg-green-900/30"
-                                                : "bg-white dark:bg-zinc-700"
-                                        )}
-                                    >
-                                        <span className="text-sm truncate">
-                                            {players[playerId]?.name ||
-                                                "Unknown"}
-                                        </span>
-                                        <span className="font-bold text-zinc-700 dark:text-zinc-300">
-                                            {pips}
-                                        </span>
-                                    </div>
-                                )
-                            )}
+                            {(() => {
+                                // Find the lowest pip count for highlighting ties
+                                const lowestPips = Math.min(
+                                    ...Object.values(roundPipCounts)
+                                );
+                                const tiedPlayerIds = isRoundTie
+                                    ? Object.entries(roundPipCounts)
+                                          .filter(
+                                              ([, pips]) => pips === lowestPips
+                                          )
+                                          .map(([id]) => id)
+                                    : [];
+
+                                return Object.entries(roundPipCounts).map(
+                                    ([playerId, pips]) => (
+                                        <div
+                                            key={playerId}
+                                            className={cn(
+                                                "flex justify-between items-center px-2 py-1 rounded",
+                                                playerId === roundWinner
+                                                    ? "bg-green-100 dark:bg-green-900/30"
+                                                    : tiedPlayerIds.includes(
+                                                          playerId
+                                                      )
+                                                    ? "bg-amber-100 dark:bg-amber-900/30"
+                                                    : "bg-white dark:bg-zinc-700"
+                                            )}
+                                        >
+                                            <span className="text-sm truncate">
+                                                {players[playerId]?.name ||
+                                                    "Unknown"}
+                                            </span>
+                                            <span className="font-bold text-zinc-700 dark:text-zinc-300">
+                                                {pips}
+                                            </span>
+                                        </div>
+                                    )
+                                );
+                            })()}
                         </div>
                     </div>
                 )}

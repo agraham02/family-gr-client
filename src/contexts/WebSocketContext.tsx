@@ -1,22 +1,25 @@
+// src/contexts/WebSocketContext.tsx
+// Simplified WebSocket context using singleton socket pattern
+
 "use client";
+
 import React, {
     createContext,
     useContext,
     useEffect,
-    useRef,
     useState,
+    useCallback,
     ReactNode,
 } from "react";
-import { io, Socket } from "socket.io-client";
+import { Socket } from "socket.io-client";
 import { useSession } from "./SessionContext";
-import { toast } from "sonner";
-import { SOCKET_BASE } from "@/services";
+import { getSocket, connectSocket, disconnectSocket } from "@/lib/socket";
 
 interface WebSocketContextValue {
     socket: Socket | null;
     connected: boolean;
     reconnecting: boolean;
-    send: <T>(event: string, payload: T) => void;
+    emit: <T>(event: string, payload: T) => void;
 }
 
 const WebSocketContext = createContext<WebSocketContextValue | undefined>(
@@ -25,8 +28,9 @@ const WebSocketContext = createContext<WebSocketContextValue | undefined>(
 
 export function useWebSocket() {
     const ctx = useContext(WebSocketContext);
-    if (!ctx)
+    if (!ctx) {
         throw new Error("useWebSocket must be used within a WebSocketProvider");
+    }
     return ctx;
 }
 
@@ -37,88 +41,83 @@ interface WebSocketProviderProps {
 export function WebSocketProvider({ children }: WebSocketProviderProps) {
     const [connected, setConnected] = useState(false);
     const [reconnecting, setReconnecting] = useState(false);
-    const socketRef = useRef<Socket | null>(null);
     const { roomId, userId } = useSession();
 
     useEffect(() => {
+        // Don't connect until we have both roomId and userId
         if (!roomId || !userId) {
             return;
         }
 
-        const socket = io(SOCKET_BASE, {
-            query: { roomId, userId },
-            transports: ["websocket", "polling"],
-            autoConnect: true,
-            timeout: 20000,
-            forceNew: true, // Ensure fresh connection
-            reconnection: true, // Enable automatic reconnection
-            reconnectionAttempts: 10, // Max reconnection attempts
-            reconnectionDelay: 1000, // Initial delay between reconnection attempts
-            reconnectionDelayMax: 5000, // Max delay between attempts
-        });
-        socketRef.current = socket;
+        const socket = getSocket();
 
-        socket.on("connect", () => {
+        // Event handlers
+        function onConnect() {
+            console.log("WebSocketContext: connected");
             setConnected(true);
             setReconnecting(false);
-            // Re-join the room on (re)connect to trigger rejoin logic on the server
-            socket.emit("join_room", { roomId, userId });
-        });
+        }
 
-        socket.on("disconnect", (reason) => {
+        function onDisconnect() {
+            console.log("WebSocketContext: disconnected");
             setConnected(false);
-            // If disconnected due to transport close or ping timeout, socket.io will auto-reconnect
-            if (reason === "io server disconnect") {
-                // Server disconnected us, we need to manually reconnect
-                socket.connect();
-            }
-        });
+        }
 
-        socket.on("reconnecting", () => {
+        function onReconnecting() {
             setReconnecting(true);
-        });
+        }
 
-        socket.on("reconnect", () => {
+        function onReconnect() {
             setReconnecting(false);
-            toast.success("Reconnected to server!");
-        });
+        }
 
-        socket.on("reconnect_failed", () => {
+        function onReconnectFailed() {
             setReconnecting(false);
-            toast.error("Failed to reconnect. Please refresh the page.");
-        });
+        }
 
-        socket.on("connect_error", (error) => {
-            toast.error(
-                "WebSocket connection error: " +
-                    (error.message || "Unknown error")
-            );
-            setConnected(false);
-        });
+        // Register event listeners
+        socket.on("connect", onConnect);
+        socket.on("disconnect", onDisconnect);
+        socket.io.on("reconnect_attempt", onReconnecting);
+        socket.io.on("reconnect", onReconnect);
+        socket.io.on("reconnect_failed", onReconnectFailed);
 
-        socket.on("error", (error) => {
-            toast.error(error.error || "WebSocket error occurred");
-        });
+        // Connect with credentials
+        connectSocket(roomId, userId);
 
+        // Set initial connected state
+        setConnected(socket.connected);
+
+        // Cleanup - only remove listeners, don't disconnect
+        // Socket will be cleaned up when leaving room pages (layout unmount)
         return () => {
-            if (socketRef.current) {
-                socketRef.current.disconnect();
-                socketRef.current = null;
-            }
-            setConnected(false);
-            setReconnecting(false);
+            socket.off("connect", onConnect);
+            socket.off("disconnect", onDisconnect);
+            socket.io.off("reconnect_attempt", onReconnecting);
+            socket.io.off("reconnect", onReconnect);
+            socket.io.off("reconnect_failed", onReconnectFailed);
         };
     }, [roomId, userId]);
 
-    const send = <T,>(event: string, payload: T) => {
-        if (socketRef.current && connected) {
-            socketRef.current.emit(event, payload);
+    // Cleanup socket when provider unmounts (leaving room layout)
+    useEffect(() => {
+        return () => {
+            disconnectSocket();
+        };
+    }, []);
+
+    const emit = useCallback(<T,>(event: string, payload: T) => {
+        const socket = getSocket();
+        if (socket.connected) {
+            socket.emit(event, payload);
         }
-    };
+    }, []);
+
+    const socket = roomId && userId ? getSocket() : null;
 
     return (
         <WebSocketContext.Provider
-            value={{ socket: socketRef.current, connected, reconnecting, send }}
+            value={{ socket, connected, reconnecting, emit }}
         >
             {children}
         </WebSocketContext.Provider>

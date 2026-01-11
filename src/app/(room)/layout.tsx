@@ -1,5 +1,7 @@
 import { WebSocketProvider } from "@/contexts/WebSocketContext";
 import ReconnectingBanner from "@/components/ReconnectingBanner";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { ServerKeepAlive } from "@/components/ServerKeepAlive";
 
 export default function RoomLayout({
     children,
@@ -8,8 +10,11 @@ export default function RoomLayout({
 }) {
     return (
         <WebSocketProvider>
-            <ReconnectingBanner />
-            {children}
+            <ErrorBoundary>
+                <ServerKeepAlive />
+                <ReconnectingBanner />
+                {children}
+            </ErrorBoundary>
         </WebSocketProvider>
     );
 }

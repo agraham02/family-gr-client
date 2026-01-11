@@ -1,8 +1,19 @@
 import { BaseGameData } from "..";
 
 export interface PlayingCard {
-    rank: string;
-    suit: "Spades" | "Hearts" | "Diamonds" | "Clubs";
+    readonly rank: string;
+    readonly suit: "Spades" | "Hearts" | "Diamonds" | "Clubs";
+}
+
+export interface SpadesSettings {
+    allowNil: boolean;
+    bagsPenalty: number;
+    winTarget: number;
+    blindNilEnabled: boolean;
+    blindBidEnabled: boolean;
+    jokersEnabled: boolean;
+    deuceOfSpadesHigh: boolean;
+    turnTimeLimit?: number; // seconds, 0 or undefined means no limit
 }
 
 export type SpadesData = BaseGameData & {
@@ -14,12 +25,13 @@ export type SpadesData = BaseGameData & {
         [teamId: string]: {
             players: string[];
             score: number;
+            accumulatedBags: number;
         };
     };
     playOrder: string[];
     dealerIndex: number;
     currentTurnIndex: number;
-    bids: Record<string, { amount: number }>;
+    bids: Record<string, { amount: number; type: string; isBlind: boolean }>;
     spadesBroken: boolean;
     currentTrick: SpadesTrick | null;
     completedTricks: SpadesTrick[];
@@ -31,7 +43,7 @@ export type SpadesData = BaseGameData & {
         | "round-summary"
         | "finished";
     round: number;
-    settings: Record<string, unknown>;
+    settings: SpadesSettings;
     history: string[];
     handsCounts: Record<string, number>;
     lastTrickWinnerId?: string;
@@ -40,6 +52,8 @@ export type SpadesData = BaseGameData & {
     roundTrickCounts: Record<string, number>;
     roundTeamScores: Record<number, number>; // scores for each team for the round.
     roundScoreBreakdown: Record<number, unknown>;
+    teamEligibleForBlind: Record<number, boolean>; // which teams are eligible for blind bids
+    turnStartedAt?: string; // ISO timestamp for turn timer
     // Add more spades fields
 };
 

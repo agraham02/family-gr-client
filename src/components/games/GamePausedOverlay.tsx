@@ -2,6 +2,7 @@
 import React, { useEffect, useState } from "react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { User } from "@/types";
 import { Loader2, UserX, Clock } from "lucide-react";
 
@@ -23,6 +24,8 @@ export default function GamePausedOverlay({
     onLeaveGame,
 }: GamePausedOverlayProps) {
     const [timeRemaining, setTimeRemaining] = useState<string>("");
+    const [kickTarget, setKickTarget] = useState<User | null>(null);
+    const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
 
     useEffect(() => {
         if (!isPaused || !timeoutAt) {
@@ -54,25 +57,25 @@ export default function GamePausedOverlay({
 
     return (
         <Dialog open={isPaused}>
-            <DialogContent className="flex flex-col items-center gap-6 max-w-md">
+            <DialogContent className="flex flex-col items-center gap-3 sm:gap-6 max-w-md max-h-[90vh] overflow-y-auto p-4 sm:p-6">
                 <DialogTitle className="sr-only">Game Paused</DialogTitle>
                 <div className="flex flex-col items-center gap-2">
-                    <Loader2 className="h-12 w-12 text-amber-500 animate-spin" />
-                    <h2 className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                    <Loader2 className="h-10 w-10 sm:h-12 sm:w-12 text-amber-500 animate-spin" />
+                    <h2 className="text-xl sm:text-2xl font-bold text-amber-600 dark:text-amber-400">
                         Game Paused
                     </h2>
-                    <p className="text-zinc-600 dark:text-zinc-400 text-center">
+                    <p className="text-xs sm:text-sm text-zinc-600 dark:text-zinc-400 text-center">
                         Waiting for disconnected players to rejoin...
                     </p>
                 </div>
 
                 {/* Countdown Timer */}
                 {timeRemaining && (
-                    <div className="flex items-center gap-2 px-4 py-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
-                        <Clock className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                        <span className="text-sm text-amber-700 dark:text-amber-300">
+                    <div className="flex items-center gap-2 px-3 sm:px-4 py-1.5 sm:py-2 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+                        <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600 dark:text-amber-400" />
+                        <span className="text-xs sm:text-sm text-amber-700 dark:text-amber-300">
                             Auto-abort in{" "}
-                            <span className="font-bold text-lg">
+                            <span className="font-bold text-base sm:text-lg">
                                 {timeRemaining}
                             </span>
                         </span>
@@ -82,18 +85,18 @@ export default function GamePausedOverlay({
                 {/* Disconnected Players List */}
                 {disconnectedPlayers.length > 0 && (
                     <div className="w-full">
-                        <h3 className="text-sm font-semibold text-zinc-500 dark:text-zinc-400 mb-2">
+                        <h3 className="text-xs sm:text-sm font-semibold text-zinc-500 dark:text-zinc-400 mb-2">
                             Disconnected Players
                         </h3>
                         <div className="flex flex-col gap-2">
                             {disconnectedPlayers.map((player) => (
                                 <div
                                     key={player.id}
-                                    className="flex items-center justify-between px-4 py-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800"
+                                    className="flex items-center justify-between px-3 sm:px-4 py-2 sm:py-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800"
                                 >
-                                    <div className="flex items-center gap-3">
-                                        <UserX className="h-5 w-5 text-red-500" />
-                                        <span className="font-medium text-red-700 dark:text-red-300">
+                                    <div className="flex items-center gap-2 sm:gap-3">
+                                        <UserX className="h-4 w-4 sm:h-5 sm:w-5 text-red-500" />
+                                        <span className="text-sm sm:text-base font-medium text-red-700 dark:text-red-300">
                                             {player.name}
                                         </span>
                                     </div>
@@ -102,8 +105,9 @@ export default function GamePausedOverlay({
                                             variant="destructive"
                                             size="sm"
                                             onClick={() =>
-                                                onKickPlayer(player.id)
+                                                setKickTarget(player)
                                             }
+                                            className="text-xs sm:text-sm"
                                         >
                                             Kick
                                         </Button>
@@ -118,12 +122,46 @@ export default function GamePausedOverlay({
                 {onLeaveGame && (
                     <Button
                         variant="outline"
-                        className="w-full mt-2"
-                        onClick={onLeaveGame}
+                        className="w-full mt-1 sm:mt-2 h-9 sm:h-10 text-sm"
+                        onClick={() => setShowLeaveConfirm(true)}
                     >
                         Leave Game
                     </Button>
                 )}
+
+                {/* Kick Confirmation Dialog */}
+                <ConfirmDialog
+                    open={!!kickTarget}
+                    title="Kick Player"
+                    description={`Are you sure you want to kick ${
+                        kickTarget?.name || "this player"
+                    }? They will be removed from the game.`}
+                    confirmText="Kick"
+                    cancelText="Cancel"
+                    variant="destructive"
+                    onConfirm={() => {
+                        if (kickTarget && onKickPlayer) {
+                            onKickPlayer(kickTarget.id);
+                            setKickTarget(null);
+                        }
+                    }}
+                    onCancel={() => setKickTarget(null)}
+                />
+
+                {/* Leave Game Confirmation Dialog */}
+                <ConfirmDialog
+                    open={showLeaveConfirm}
+                    title="Leave Game"
+                    description="Are you sure you want to leave the game? You may not be able to rejoin."
+                    confirmText="Leave"
+                    cancelText="Stay"
+                    variant="destructive"
+                    onConfirm={() => {
+                        setShowLeaveConfirm(false);
+                        onLeaveGame?.();
+                    }}
+                    onCancel={() => setShowLeaveConfirm(false)}
+                />
             </DialogContent>
         </Dialog>
     );

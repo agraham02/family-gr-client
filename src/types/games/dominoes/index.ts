@@ -29,6 +29,7 @@ export type DominoesPhase = "playing" | "round-summary" | "finished";
 
 export interface DominoesSettings {
     winTarget: number; // Score needed to win (default 100)
+    drawFromBoneyard: boolean; // Allow drawing tiles instead of passing
 }
 
 // =====================
@@ -58,6 +59,7 @@ export type DominoesData = BaseGameData & {
     playerScores: Record<string, number>;
     roundPipCounts?: Record<string, number>; // Pip counts at end of round
     roundWinner?: string | null; // Winner of the current round (null if blocked tie)
+    isRoundTie?: boolean; // True if round ended in a tie (Caribbean rule)
 
     // End game
     gameWinner?: string;

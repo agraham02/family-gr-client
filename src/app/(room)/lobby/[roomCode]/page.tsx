@@ -1,26 +1,40 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useWebSocket } from "@/contexts/WebSocketContext";
 import { useParams, useRouter } from "next/navigation";
-import { joinRoom } from "@/services/lobby";
+import { joinRoom, PrivateRoomError, getRoomIdByCode } from "@/services/lobby";
 import {
     Dialog,
     DialogContent,
     DialogHeader,
     DialogTitle,
+    DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
 import { useSession } from "@/contexts/SessionContext";
 import { toast } from "sonner";
-import { LobbyData, RoomEventPayload } from "@/types";
+import { LobbyData } from "@/types";
 import LobbyDashboard from "@/components/lobby/LobbyDashboard";
-import { ClipboardIcon } from "lucide-react";
+import GameInProgressBanner from "@/components/lobby/GameInProgressBanner";
+import { LobbySkeleton } from "@/components/skeletons";
+import {
+    ClipboardIcon,
+    CheckIcon,
+    WifiIcon,
+    WifiOffIcon,
+    UsersIcon,
+    Loader2Icon,
+    AlertCircleIcon,
+} from "lucide-react";
+import { useRoomEvents } from "@/hooks/useRoomEvents";
+import { validatePlayerName, sanitizePlayerName } from "@/lib/validation";
 
 export default function LobbyPage() {
-    const { socket, connected } = useWebSocket();
+    const { connected } = useWebSocket();
     const [lobbyData, setLobbyData] = useState<LobbyData | null>(null);
     const { roomCode }: { roomCode: string } = useParams();
     const {
@@ -31,157 +45,198 @@ export default function LobbyPage() {
         setUserId,
         setUserName,
         initializing,
+        clearRoomSession,
     } = useSession();
     const [showModal, setShowModal] = useState(false);
     const [pendingName, setPendingName] = useState("");
-    const [hasJoined, setHasJoined] = useState(false);
+    const [nameError, setNameError] = useState<string | null>(null);
+    const [isJoining, setIsJoining] = useState(false);
     const router = useRouter();
 
-    const handleReconnect = useCallback(async () => {
+    // Use the shared room events hook
+    useRoomEvents({
+        roomCode,
+        onSync: (roomState) => {
+            setLobbyData(roomState);
+        },
+        // Don't auto-navigate from lobby - let the hook handle game_started
+        autoNavigateOnGameStart: true,
+    });
+
+    // Track if we've already attempted to join to prevent infinite loops
+    const hasAttemptedJoin = useRef(false);
+    const hasValidatedURL = useRef(false);
+
+    // Reset validation state when roomCode changes (client-side navigation to different room)
+    useEffect(() => {
+        hasValidatedURL.current = false;
+    }, [roomCode]);
+
+    // Validate URL matches stored roomId on mount
+    useEffect(() => {
+        if (!roomCode || !roomId || hasValidatedURL.current || initializing) {
+            return;
+        }
+
+        const validateURL = async () => {
+            const actualRoomId = await getRoomIdByCode(roomCode);
+            if (actualRoomId && actualRoomId !== roomId) {
+                console.log(
+                    `Room mismatch: URL roomCode=${roomCode} → roomId=${actualRoomId}, ` +
+                        `but session has roomId=${roomId}. Clearing session to rejoin.`
+                );
+                clearRoomSession();
+                hasAttemptedJoin.current = false; // Allow rejoin
+            }
+            hasValidatedURL.current = true;
+        };
+
+        validateURL();
+    }, [roomCode, roomId, initializing, clearRoomSession]);
+
+    // Handle joining room via REST API when we have userName but no roomId
+    const handleJoinRoom = useCallback(async () => {
         if (!userName || !roomCode) return;
+
+        setIsJoining(true);
         try {
             const res = await joinRoom(userName, roomCode, userId);
-            // console.log("Reconnected with response:", res);
             if (res.roomId !== roomId) {
                 setRoomId(res.roomId);
             }
             if (res.userId !== userId) {
                 setUserId(res.userId);
             }
-            setHasJoined(true);
         } catch (error) {
-            toast.error(
-                "Failed to join room: " +
-                    (error instanceof Error ? error.message : "Unknown error")
-            );
+            if (error instanceof PrivateRoomError) {
+                // Private room - redirect to home page with a message
+                toast.error(
+                    "This room is private. Please request to join from the home page."
+                );
+            } else {
+                toast.error(
+                    "Failed to join room: " +
+                        (error instanceof Error
+                            ? error.message
+                            : "Unknown error")
+                );
+            }
             router.push("/");
+        } finally {
+            setIsJoining(false);
         }
     }, [userName, roomCode, userId, roomId, setUserId, setRoomId, router]);
 
+    // Show name modal if no userName
     useEffect(() => {
-        if (!initializing) setShowModal(!userName);
+        if (!initializing && !userName) {
+            setShowModal(true);
+        }
     }, [userName, initializing]);
 
+    // Join room when we have userName but no roomId (only once)
     useEffect(() => {
-        if (!userName || !roomCode || hasJoined) return;
-        handleReconnect();
-    }, [userName, roomCode, hasJoined, handleReconnect]);
-
-    useEffect(() => {
-        if (!socket || !connected || !roomId || !userId) return;
-
-        function handleRoomEvent(payload: RoomEventPayload) {
-            console.log("📨 Room event:", payload);
-            setLobbyData(payload.roomState);
-
-            // If we're on the lobby page but room has an active game, redirect to game
-            if (
-                payload.event === "sync" &&
-                payload.roomState.state === "in-game"
-            ) {
-                toast.info("Rejoining active game...");
-                router.push(`/game/${roomCode}`);
-                return;
-            }
-
-            switch (payload.event) {
-                case "game_started":
-                    toast.info(`Starting ${payload.gameType} game...`);
-                    router.push(`/game/${roomCode}`);
-                    break;
-                case "user_joined":
-                case "user_left":
-                    toast.info(
-                        `${payload.userName} ${
-                            payload.event === "user_joined" ? "joined" : "left"
-                        }`
-                    );
-                    break;
-                case "room_closed":
-                    toast.warning("Room has been closed by the leader");
-                    router.push("/");
-                    break;
-                case "user_kicked":
-                    if (payload.userId === userId) {
-                        toast.error("You have been kicked from the room.");
-                        router.push("/");
-                    } else {
-                        toast.info(
-                            `${
-                                payload.userName || "A player"
-                            } was kicked from the room.`
-                        );
-                    }
-                    break;
-                case "leader_promoted":
-                    if (payload.newLeaderId === userId) {
-                        toast.info("You are now the room leader!");
-                    } else {
-                        toast.info(
-                            `${payload.newLeaderName} is now the room leader.`
-                        );
-                    }
-                    break;
-                case "game_aborted":
-                    if (payload.reason === "reconnect_timeout") {
-                        toast.warning(
-                            "Game was aborted: Players did not reconnect in time."
-                        );
-                    } else if (payload.reason === "not_enough_players") {
-                        toast.warning("Game was aborted: Not enough players.");
-                    } else {
-                        toast.info("Game was aborted.");
-                    }
-                    break;
-            }
+        if (
+            !initializing &&
+            userName &&
+            !roomId &&
+            roomCode &&
+            !hasAttemptedJoin.current
+        ) {
+            hasAttemptedJoin.current = true;
+            handleJoinRoom();
         }
-
-        socket.on("room_event", handleRoomEvent);
-
-        // Note: join_room is now automatically emitted by WebSocketContext on connect
-
-        return () => {
-            socket.off("room_event", handleRoomEvent);
-        };
-    }, [socket, connected, roomId, userId, roomCode, router]);
+    }, [initializing, userName, roomId, roomCode, handleJoinRoom]);
 
     function handleNameSubmit(e: React.FormEvent) {
         e.preventDefault();
-        if (pendingName.trim()) {
-            setUserName(pendingName.trim());
-            setShowModal(false);
+
+        // Validate name
+        const validationError = validatePlayerName(pendingName);
+        if (validationError) {
+            setNameError(validationError.message);
+            return;
         }
+
+        setNameError(null);
+        const sanitizedName = sanitizePlayerName(pendingName);
+        setUserName(sanitizedName);
+        setShowModal(false);
     }
 
-    if (!hasJoined) {
+    // Show skeleton while initializing, joining, or waiting for lobby data
+    const isLoading = initializing || isJoining || !lobbyData;
+    const [copied, setCopied] = useState(false);
+
+    function handleCopyCode() {
+        if (!lobbyData) return;
+        navigator.clipboard.writeText(lobbyData.code);
+        setCopied(true);
+        toast.success("Room code copied to clipboard");
+        setTimeout(() => setCopied(false), 2000);
+    }
+
+    if (isLoading) {
         return (
             <>
-                <div className="flex items-center justify-center h-screen">
-                    <p className="text-lg">Joining room...</p>
-                </div>
+                <LobbySkeleton />
                 <Dialog open={showModal}>
-                    <DialogContent>
+                    <DialogContent className="sm:max-w-md">
                         <motion.form
                             initial={{ opacity: 0, y: 40 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ duration: 0.3 }}
                             onSubmit={handleNameSubmit}
-                            className="flex flex-col gap-4 items-center p-6"
+                            className="flex flex-col gap-4 items-center p-2"
                         >
-                            <DialogHeader>
-                                <DialogTitle>
-                                    Enter your name to join the lobby
+                            <DialogHeader className="text-center">
+                                <div className="mx-auto mb-4 w-16 h-16 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg">
+                                    <UsersIcon className="w-8 h-8 text-white" />
+                                </div>
+                                <DialogTitle className="text-xl">
+                                    Join the Game
                                 </DialogTitle>
+                                <DialogDescription>
+                                    Enter your name to join the lobby
+                                </DialogDescription>
                             </DialogHeader>
                             <Input
                                 autoFocus
                                 placeholder="Your Name"
                                 value={pendingName}
-                                onChange={(e) => setPendingName(e.target.value)}
-                                className="w-64"
+                                onChange={(e) => {
+                                    setPendingName(e.target.value);
+                                    // Clear error when user starts typing
+                                    if (nameError) {
+                                        setNameError(null);
+                                    }
+                                }}
+                                className={`h-11 text-center text-lg ${
+                                    nameError
+                                        ? "border-red-500 dark:border-red-400 focus:ring-red-500/20 focus:border-red-500"
+                                        : ""
+                                }`}
+                                maxLength={50}
                             />
-                            <Button type="submit" className="w-full mt-2">
-                                Join
+                            {nameError && (
+                                <div className="flex items-center gap-2 text-sm text-red-600 dark:text-red-400 w-full">
+                                    <AlertCircleIcon className="w-4 h-4 flex-shrink-0" />
+                                    <span>{nameError}</span>
+                                </div>
+                            )}
+                            <Button
+                                type="submit"
+                                className="w-full h-11 bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 text-white font-semibold"
+                                disabled={!pendingName.trim() || !!nameError}
+                            >
+                                {pendingName.trim() && !nameError ? (
+                                    "Join Lobby"
+                                ) : (
+                                    <>
+                                        <Loader2Icon className="w-4 h-4 animate-spin mr-2" />
+                                        Enter your name
+                                    </>
+                                )}
                             </Button>
                         </motion.form>
                     </DialogContent>
@@ -191,38 +246,92 @@ export default function LobbyPage() {
     }
 
     return (
-        <>
-            <main className="px-4 py-8 flex flex-col items-center">
-                <header className="text-center">
-                    <div>
-                        <h1 className="text-3xl font-bold">
-                            {lobbyData?.name}
-                        </h1>
-                    </div>
-                    <div className="flex items-center justify-center">
-                        {/* <h2 className="text-xl font-semibold">Lobby Details</h2> */}
-                        <p className="text-xl">Room Code: {lobbyData?.code}</p>
-                        <div className="mx-2">
+        <main className="min-h-screen bg-gradient-to-b from-zinc-50 via-zinc-100 to-zinc-50 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950">
+            {/* Subtle background pattern */}
+            <div className="fixed inset-0 bg-[linear-gradient(to_right,#8882_1px,transparent_1px),linear-gradient(to_bottom,#8882_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_80%_50%_at_50%_0%,black_40%,transparent_100%)] pointer-events-none" />
+
+            <div className="relative z-10 px-4 py-6 md:py-8">
+                {/* Header Section */}
+                <motion.header
+                    initial={{ opacity: 0, y: -20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.4 }}
+                    className="max-w-6xl mx-auto"
+                >
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-4 md:p-6 rounded-2xl bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm border border-zinc-200/50 dark:border-zinc-700/50 shadow-lg">
+                        {/* Room Info */}
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                            <div>
+                                <h1 className="text-2xl md:text-3xl font-bold text-zinc-900 dark:text-white">
+                                    {lobbyData.name || "Game Lobby"}
+                                </h1>
+                                <div className="flex items-center gap-2 mt-1">
+                                    <Badge
+                                        variant="secondary"
+                                        className="bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300"
+                                    >
+                                        <UsersIcon className="w-3 h-3 mr-1" />
+                                        {lobbyData.users.length} player
+                                        {lobbyData.users.length !== 1
+                                            ? "s"
+                                            : ""}
+                                    </Badge>
+                                    <Badge
+                                        variant="outline"
+                                        className={
+                                            connected
+                                                ? "border-emerald-500/50 text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/30"
+                                                : "border-amber-500/50 text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30"
+                                        }
+                                    >
+                                        {connected ? (
+                                            <>
+                                                <WifiIcon className="w-3 h-3 mr-1" />
+                                                Connected
+                                            </>
+                                        ) : (
+                                            <>
+                                                <WifiOffIcon className="w-3 h-3 mr-1 animate-pulse" />
+                                                Reconnecting...
+                                            </>
+                                        )}
+                                    </Badge>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Room Code */}
+                        <div className="flex items-center gap-3">
+                            <div className="flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                                <span className="text-sm text-zinc-500 dark:text-zinc-400">
+                                    Room Code:
+                                </span>
+                                <span className="text-xl md:text-2xl font-mono font-bold tracking-wider text-zinc-900 dark:text-white">
+                                    {lobbyData.code}
+                                </span>
+                            </div>
                             <Button
                                 variant="outline"
-                                onClick={() => {
-                                    navigator.clipboard.writeText(
-                                        lobbyData?.code ?? ""
-                                    );
-                                    toast.success(
-                                        "Room code copied to clipboard"
-                                    );
-                                }}
+                                size="icon"
+                                onClick={handleCopyCode}
+                                className="h-10 w-10 rounded-xl border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-all"
+                                title="Copy room code"
                             >
-                                {/* copy icon */}
-                                <ClipboardIcon className="w-2 h-2" />
+                                {copied ? (
+                                    <CheckIcon className="w-4 h-4 text-emerald-500" />
+                                ) : (
+                                    <ClipboardIcon className="w-4 h-4" />
+                                )}
                             </Button>
                         </div>
                     </div>
-                </header>
+                </motion.header>
 
-                {lobbyData && <LobbyDashboard lobbyData={lobbyData} />}
-            </main>
-        </>
+                {/* Game in Progress Banner */}
+                <GameInProgressBanner lobbyData={lobbyData} />
+
+                <LobbyDashboard lobbyData={lobbyData} />
+            </div>
+        </main>
     );
 }
