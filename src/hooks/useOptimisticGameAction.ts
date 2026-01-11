@@ -159,11 +159,13 @@ export function useOptimisticGameAction({
             // Generate unique action ID
             const actionId = `${userId}-${uuidv4()}`;
 
-            // Get current state (after any pending optimistic updates)
-            // This ensures we snapshot the state INCLUDING previous optimistic changes
+            // Deep clone the current state to create an immutable snapshot
+            // This ensures rollback works correctly even if nested objects are mutated
             const snapshot = {
-                gameData: { ...gameData },
-                playerData: { ...playerData },
+                gameData: JSON.parse(JSON.stringify(gameData)) as GameData,
+                playerData: JSON.parse(
+                    JSON.stringify(playerData)
+                ) as PlayerData,
             };
 
             // Apply optimistic update
