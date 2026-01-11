@@ -7,6 +7,7 @@ import GamePausedOverlay from "@/components/games/GamePausedOverlay";
 import SpectatorBanner from "@/components/games/SpectatorBanner";
 import { getGameComponent } from "@/components/games/registry";
 import { GameSkeleton } from "@/components/skeletons";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { GameData, GameEventPayload, PlayerData, User } from "@/types";
 import { toast } from "sonner";
 import { useRouter, useParams } from "next/navigation";
@@ -30,6 +31,8 @@ export default function GamePage() {
     const [isSpectator, setIsSpectator] = useState(false);
     // Track spectators for potential future UI display
     const [, setSpectators] = useState<string[]>([]);
+    // Accessibility: Track announcements for screen readers
+    const [announcement, setAnnouncement] = useState<string>("");
     const router = useRouter();
 
     // Handle direct game URL recovery (rejoin with name prompt if session lost)
@@ -300,6 +303,27 @@ export default function GamePage() {
         }
     }
 
+    // Accessibility: Announce turn changes for screen readers
+    useEffect(() => {
+        if (!gameData || isSpectator) return;
+
+        const currentPlayerId = gameData.playOrder?.[gameData.currentTurnIndex];
+        if (currentPlayerId === userId) {
+            setAnnouncement("It's your turn");
+        }
+    }, [
+        gameData?.currentTurnIndex,
+        gameData?.playOrder,
+        userId,
+        isSpectator,
+        gameData,
+    ]);
+
+    // Error fallback for game component crashes
+    const handleGameError = useCallback(() => {
+        router.push(`/lobby/${roomCode}`);
+    }, [router, roomCode]);
+
     if (!gameData || isRecovering) {
         return (
             <>
@@ -356,23 +380,45 @@ export default function GamePage() {
                 />
             )}
 
+            {/* Accessibility: Screen reader announcements */}
+            <div aria-live="polite" aria-atomic="true" className="sr-only">
+                {announcement}
+            </div>
+
             {/* Game UI */}
             {(() => {
                 const GameComponent = getGameComponent(gameData.type);
                 // Show game component for spectators even without playerData
                 if (GameComponent && (playerData || isSpectator)) {
                     return (
-                        <GameComponent
-                            gameData={gameData}
-                            playerData={playerData}
-                            dispatchOptimisticAction={
-                                isSpectator
-                                    ? undefined
-                                    : optimisticAction.dispatch
+                        <ErrorBoundary
+                            onReset={handleGameError}
+                            fallback={
+                                <div className="flex flex-col items-center justify-center h-full gap-4 text-zinc-500 dark:text-zinc-400">
+                                    <p>
+                                        Something went wrong loading the game.
+                                    </p>
+                                    <button
+                                        onClick={handleGameError}
+                                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+                                    >
+                                        Return to Lobby
+                                    </button>
+                                </div>
                             }
-                            isSpectator={isSpectator}
-                            roomCode={roomCode}
-                        />
+                        >
+                            <GameComponent
+                                gameData={gameData}
+                                playerData={playerData}
+                                dispatchOptimisticAction={
+                                    isSpectator
+                                        ? undefined
+                                        : optimisticAction.dispatch
+                                }
+                                isSpectator={isSpectator}
+                                roomCode={roomCode}
+                            />
+                        </ErrorBoundary>
                     );
                 }
                 return (

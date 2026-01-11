@@ -107,7 +107,11 @@ export default function PlaceBidModal({
                         Quick Bid
                     </p>
 
-                    <div className="flex gap-1.5 sm:gap-2 flex-wrap justify-center">
+                    <div
+                        className="flex gap-1.5 sm:gap-2 flex-wrap justify-center"
+                        role="group"
+                        aria-label="Quick bid selection"
+                    >
                         {[1, 2, 3, 4, 5, 6, 7].map((quickBid) => (
                             <Button
                                 key={quickBid}
@@ -115,6 +119,8 @@ export default function PlaceBidModal({
                                 size="sm"
                                 onClick={() => handleBidChange(quickBid - bid)}
                                 disabled={isNilBid}
+                                aria-pressed={bid === quickBid && !isNilBid}
+                                aria-label={`Bid ${quickBid} tricks`}
                                 className={`h-7 w-7 sm:h-8 sm:w-8 rounded-full text-xs sm:text-sm ${
                                     bid === quickBid && !isNilBid
                                         ? "bg-amber-500/30 text-amber-400"
