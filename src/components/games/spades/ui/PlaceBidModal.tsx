@@ -11,6 +11,7 @@ export default function PlaceBidModal({
     handleBidChange,
     handleSubmitBid,
     allowNil,
+    isSubmitting,
 }: {
     bid: number;
     bidModalOpen: boolean;
@@ -18,17 +19,28 @@ export default function PlaceBidModal({
     handleBidChange: (delta: number) => void;
     handleSubmitBid: (isNil: boolean) => void;
     allowNil: boolean;
+    isSubmitting?: boolean;
 }) {
     const [isNilBid, setIsNilBid] = useState(false);
     return (
         <Dialog open={bidModalOpen} onOpenChange={setBidModalOpen}>
-            <DialogContent className="flex flex-col items-center gap-3 sm:gap-6 max-w-sm max-h-[90vh] overflow-y-auto bg-slate-900 border-white/10 text-white p-4 sm:p-6">
-                <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl font-bold text-white">
+            <DialogContent
+                aria-labelledby="bid-modal-title"
+                aria-describedby="bid-modal-desc"
+                className="flex flex-col items-center gap-3 sm:gap-6 max-w-[95vw] sm:max-w-sm max-h-[85vh] sm:max-h-[90vh] overflow-y-auto bg-slate-900 border-white/10 text-white p-3 sm:p-6"
+            >
+                <DialogTitle
+                    id="bid-modal-title"
+                    className="flex items-center gap-2 text-base sm:text-xl font-bold text-white"
+                >
                     <Target className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400" />
                     Place Your Bid
                 </DialogTitle>
 
-                <p className="text-xs sm:text-sm text-white/60 text-center -mt-1 sm:-mt-2">
+                <p
+                    id="bid-modal-desc"
+                    className="text-xs sm:text-sm text-white/60 text-center -mt-1 sm:-mt-2"
+                >
                     How many tricks do you think you can win?
                 </p>
 
@@ -65,7 +77,7 @@ export default function PlaceBidModal({
                         variant="outline"
                         onClick={() => handleBidChange(-1)}
                         disabled={bid <= 0}
-                        aria-label="Decrease bid"
+                        aria-label="Decrease bid by 1"
                         className="h-10 w-10 sm:h-14 sm:w-14 rounded-full border-white/20 bg-slate-800 hover:bg-slate-700 text-white text-xl sm:text-2xl disabled:opacity-30"
                     >
                         <Minus className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -87,7 +99,7 @@ export default function PlaceBidModal({
                         variant="outline"
                         onClick={() => handleBidChange(1)}
                         disabled={bid >= 13}
-                        aria-label="Increase bid"
+                        aria-label="Increase bid by 1"
                         className="h-10 w-10 sm:h-14 sm:w-14 rounded-full border-white/20 bg-slate-800 hover:bg-slate-700 text-white text-xl sm:text-2xl disabled:opacity-30"
                     >
                         <Plus className="w-5 h-5 sm:w-6 sm:h-6" />
@@ -126,8 +138,11 @@ export default function PlaceBidModal({
                         setBidModalOpen(false);
                         setIsNilBid(false); // Reset for next round
                     }}
+                    disabled={isSubmitting}
                 >
-                    Submit {isNilBid ? "Nil " : ""}Bid
+                    {isSubmitting
+                        ? "Submitting..."
+                        : `Submit ${isNilBid ? "Nil " : ""}Bid`}
                 </Button>
 
                 <Button

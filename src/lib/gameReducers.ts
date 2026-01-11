@@ -111,6 +111,30 @@ function optimisticSpadesPlaceBid(
         return null;
     }
 
+    // Validate blind bid eligibility
+    if (bid.type === "blind" || bid.type === "blind-nil") {
+        const playerTeam = Object.entries(gameData.teams).find(([_, team]) =>
+            team.players.includes(userId)
+        );
+        if (!playerTeam) return null;
+
+        const teamId = Number(playerTeam[0]);
+        const isEligible = gameData.teamEligibleForBlind?.[teamId];
+
+        if (!isEligible) {
+            console.warn("Blind bid attempted but team not eligible");
+            return null; // Don't apply optimistic update
+        }
+
+        // Validate settings
+        if (bid.type === "blind-nil" && !gameData.settings.blindNilEnabled) {
+            return null;
+        }
+        if (bid.type === "blind" && !gameData.settings.blindBidEnabled) {
+            return null;
+        }
+    }
+
     // Update bids
     const newBids = { ...gameData.bids };
     newBids[userId] = bid;

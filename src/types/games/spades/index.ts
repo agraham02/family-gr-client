@@ -1,8 +1,8 @@
 import { BaseGameData } from "..";
 
 export interface PlayingCard {
-    rank: string;
-    suit: "Spades" | "Hearts" | "Diamonds" | "Clubs";
+    readonly rank: string;
+    readonly suit: "Spades" | "Hearts" | "Diamonds" | "Clubs";
 }
 
 export interface SpadesSettings {

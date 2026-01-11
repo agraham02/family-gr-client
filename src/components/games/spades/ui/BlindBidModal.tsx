@@ -38,11 +38,23 @@ export default function BlindBidModal({
 
     return (
         <Dialog open={isOpen} onOpenChange={handleClose}>
-            <DialogContent className="flex flex-col items-center gap-6 max-w-md bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-amber-500/30 text-white p-6 shadow-2xl">
-                <DialogTitle className="flex items-center gap-2 text-2xl font-bold text-amber-400 text-center">
-                    <Zap className="w-7 h-7 text-amber-400 animate-pulse" />
+            <DialogContent
+                aria-labelledby="blind-bid-title"
+                aria-describedby="blind-bid-desc"
+                className="flex flex-col items-center gap-4 sm:gap-6 max-w-[95vw] sm:max-w-md max-h-[85vh] sm:max-h-[90vh] overflow-y-auto bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border-amber-500/30 text-white p-4 sm:p-6 shadow-2xl"
+            >
+                <DialogTitle
+                    id="blind-bid-title"
+                    className="flex items-center gap-2 text-xl sm:text-2xl font-bold text-amber-400 text-center"
+                >
+                    <Zap className="w-6 h-6 sm:w-7 sm:h-7 text-amber-400 animate-pulse" />
                     Blind Bid Opportunity
                 </DialogTitle>
+
+                <p id="blind-bid-desc" className="sr-only">
+                    Choose to bid without seeing your cards for double points,
+                    or decline to see your cards
+                </p>
 
                 <div className="w-full space-y-4">
                     {/* Team Score Context */}
@@ -194,10 +206,16 @@ export default function BlindBidModal({
                                             <Plus className="w-5 h-5" />
                                         </Button>
                                     </div>
-                                    <p className="text-xs text-amber-200/80 mt-3">
-                                        Success: +{blindBidAmount * 20} points
-                                        (double)
-                                    </p>
+                                    <div className="space-y-1 mt-3">
+                                        <p className="text-xs text-emerald-300 font-medium">
+                                            ✓ Success: +{blindBidAmount * 20}{" "}
+                                            points
+                                        </p>
+                                        <p className="text-xs text-red-300 font-medium">
+                                            ✗ Fail: -{blindBidAmount * 20}{" "}
+                                            points
+                                        </p>
+                                    </div>
                                 </div>
 
                                 <Button

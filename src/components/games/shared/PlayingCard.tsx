@@ -86,7 +86,7 @@ function PlayingCard({
         <motion.div
             layoutId={layoutId}
             className={cn(
-                "relative rounded-lg shadow-lg bg-white border border-gray-200 overflow-hidden select-none",
+                "relative rounded-lg shadow-lg bg-white border border-gray-200 overflow-hidden select-none touch-manipulation",
                 interactive && !disabled && "cursor-pointer",
                 selected && "ring-2 ring-blue-500 ring-offset-2",
                 highlighted && "ring-2 ring-yellow-400",

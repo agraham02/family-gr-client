@@ -32,7 +32,10 @@ export default function GameSummaryModal({
 
     return (
         <Dialog open={isOpen}>
-            <DialogContent className="flex flex-col items-center gap-6 max-w-2xl bg-slate-900 border-white/10 text-white p-8">
+            <DialogContent
+                aria-labelledby="game-summary-title"
+                className="flex flex-col items-center gap-4 sm:gap-6 max-w-[95vw] sm:max-w-2xl max-h-[85vh] sm:max-h-[90vh] overflow-y-auto bg-slate-900 border-white/10 text-white p-4 sm:p-8"
+            >
                 <AnimatePresence>
                     {isOpen && (
                         <>
@@ -58,9 +61,12 @@ export default function GameSummaryModal({
                                         repeatDelay: 1,
                                     }}
                                 >
-                                    <Trophy className="w-16 h-16 text-amber-400" />
+                                    <Trophy className="w-12 h-12 sm:w-16 sm:h-16 text-amber-400" />
                                 </motion.div>
-                                <DialogTitle className="text-3xl font-bold text-center">
+                                <DialogTitle
+                                    id="game-summary-title"
+                                    className="text-2xl sm:text-3xl font-bold text-center"
+                                >
                                     Game Over!
                                 </DialogTitle>
                                 <p className="text-lg text-white/70">

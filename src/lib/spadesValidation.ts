@@ -68,3 +68,10 @@ export function getUnplayableCardIndices(
 
     return unplayableIndices;
 }
+
+/**
+ * Check if a card is a joker
+ */
+export function isJoker(card: PlayingCard): boolean {
+    return card.rank === "BJ" || card.rank === "LJ";
+}

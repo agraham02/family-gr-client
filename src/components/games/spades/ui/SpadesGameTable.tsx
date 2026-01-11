@@ -28,6 +28,7 @@ import {
     DealingItem,
 } from "@/components/games/shared";
 import { Badge } from "@/components/ui/badge";
+import { Zap, Ban } from "lucide-react";
 import { getUnplayableCardIndices } from "@/lib/spadesValidation";
 import { useTurnTimer } from "@/hooks";
 
@@ -99,14 +100,21 @@ function SpadesGameTable({
         };
     }, [turnTimeLimit, remainingSeconds, isDealing]);
 
+    // Memoize unplayable card indices for performance
+    const unplayableIndices = useMemo(
+        () =>
+            getUnplayableCardIndices(
+                playerData.hand,
+                gameData.currentTrick,
+                gameData.spadesBroken
+            ),
+        [playerData.hand, gameData.currentTrick, gameData.spadesBroken]
+    );
+
     // Calculate which cards are unplayable when hints are enabled
     const disabledCardIndices =
         showHints && isMyTurn && gameData.phase === "playing"
-            ? getUnplayableCardIndices(
-                  playerData.hand,
-                  gameData.currentTrick,
-                  gameData.spadesBroken
-              )
+            ? unplayableIndices
             : [];
 
     // Handle card selection (two-step: select, then confirm)
@@ -364,13 +372,15 @@ function SpadesGameTable({
                                                         </Badge>
                                                     )}
                                                     {bidType === "blind" && (
-                                                        <Badge className="text-[10px] px-1.5 py-0 bg-amber-600 text-white border-amber-400">
+                                                        <Badge className="text-[10px] px-1.5 py-0 bg-amber-600 text-white border-amber-400 flex items-center gap-0.5">
+                                                            <Zap className="w-2.5 h-2.5" />
                                                             BLIND
                                                         </Badge>
                                                     )}
                                                     {bidType ===
                                                         "blind-nil" && (
-                                                        <Badge className="text-[10px] px-1.5 py-0 bg-red-600 text-white border-red-400 animate-pulse">
+                                                        <Badge className="text-[10px] px-1.5 py-0 bg-red-600 text-white border-red-400 animate-pulse flex items-center gap-0.5">
+                                                            <Ban className="w-2.5 h-2.5" />
                                                             BLIND NIL
                                                         </Badge>
                                                     )}
